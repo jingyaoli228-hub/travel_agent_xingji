@@ -104,6 +104,53 @@ def test_fuse_prefers_llm_primary_intent_when_present_and_confident():
     assert result.entities.preserve_other_days is True
 
 
+def test_explicit_review_auto_fix_does_not_get_stuck_in_clarification():
+    message = "直接按评审建议修正，不改已确认约束，无需再次确认。"
+    ctx = _post_plan_ctx(
+        current_message=message,
+        current_destination="北京",
+        immutable_constraints={"destination": "北京", "budget": 6000},
+    )
+    pattern = PatternParser().parse(message, ctx)
+    llm_result = IntentResult(
+        task_type="PLAN_MODIFICATION",
+        operation="REPLAN",
+        target="FULL_ITINERARY",
+        primary_intent="APPLY_REVIEW_FIXES",
+        entities=TravelIntentEntities(destination="北京", add_categories=["culture"]),
+        state_patch={"auto_apply_review_fixes": True, "skip_confirmation": True},
+        requires_research=True,
+        requires_replanning=True,
+        confidence=0.86,
+        next_agents=["ResearchOrchestrator", "PlannerAgent", "PresentationAgent"],
+    )
+    result = FusionResolver().fuse(message, ctx, pattern, EmbeddingIntentResult(), llm_result)
+    assert result.interaction_mode == "NORMAL_FLOW"
+    assert result.clarification_required is False
+    assert result.requires_replanning is True
+    assert "PlannerAgent" in result.next_agents
+
+
+def test_review_auto_fix_primary_intent_is_enough_without_optional_state_flags():
+    message = "请根据评审问题自动修正行程。"
+    ctx = _post_plan_ctx(current_message=message, current_destination="北京")
+    pattern = PatternParser().parse(message, ctx)
+    llm_result = IntentResult(
+        task_type="PLAN_MODIFICATION",
+        operation="REPLAN",
+        target="FULL_ITINERARY",
+        primary_intent="AUTO_FIX_BY_REVIEW",
+        entities=TravelIntentEntities(destination="北京"),
+        requires_research=True,
+        requires_replanning=True,
+        confidence=0.82,
+        next_agents=["ResearchOrchestrator", "PlannerAgent", "PresentationAgent"],
+    )
+    result = FusionResolver().fuse(message, ctx, pattern, EmbeddingIntentResult(), llm_result)
+    assert result.interaction_mode == "NORMAL_FLOW"
+    assert result.clarification_required is False
+
+
 def test_fuse_side_query_preserves_state(monkeypatch):
     ctx = _post_plan_ctx(current_message="东京明天天气怎么样")
     pattern = PatternParser().parse("东京明天天气怎么样", ctx)

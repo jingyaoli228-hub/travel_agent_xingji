@@ -59,10 +59,12 @@ class WorkflowStateValidator:
 
         touches_locked_constraint = False
         if primary_intent != "MODIFY_REQUIREMENT" and entities.destination:
-            locked_keys = set((context.immutable_constraints or {}).keys())
-            if locked_keys & {"destination", "budget", "start_date", "end_date"}:
+            locked = context.immutable_constraints or {}
+            locked_destination = str(locked.get("destination") or context.current_destination or "").strip()
+            requested_destination = str(entities.destination).strip()
+            if locked_destination and requested_destination != locked_destination:
                 touches_locked_constraint = True
-                violations.append("该修改会覆盖已确认的硬约束（目的地/日期/预算），需用户显式确认")
+                violations.append("该修改会覆盖已确认的目的地，需用户显式确认")
 
         if (
             context.pending_confirmation

@@ -337,8 +337,22 @@ class FusionResolver:
         needs_research = requires_research(entities, state_patch, primary_intent) or (llm.requires_research if llm else False)
         needs_replanning = requires_replanning(operation, target) or (llm.requires_replanning if llm else False)
 
+        explicit_review_apply = bool(
+            llm
+            and llm.confidence >= cfg.high_confidence_threshold
+            and not validation.touches_locked_constraint
+            and (
+                llm.primary_intent in {"AUTO_FIX_BY_REVIEW", "APPLY_REVIEW_FIXES"}
+                or llm.state_patch.get("auto_fix_from_review")
+                or llm.state_patch.get("auto_apply_review_fixes")
+                or llm.state_patch.get("skip_confirmation")
+            )
+        )
+
         if validation.is_side_query:
             interaction_mode = "SIDE_QUERY"
+        elif explicit_review_apply:
+            interaction_mode = "NORMAL_FLOW"
         elif weighted >= cfg.high_confidence_threshold and validation.is_valid:
             interaction_mode = "NORMAL_FLOW"
         elif weighted >= cfg.medium_confidence_threshold:

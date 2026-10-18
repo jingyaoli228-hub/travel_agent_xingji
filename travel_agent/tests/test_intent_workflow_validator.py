@@ -47,3 +47,27 @@ def test_pending_confirmation_flagged_when_unaddressed():
     entities = TravelIntentEntities()
     result = WorkflowStateValidator().validate(entities, "PLAN_MODIFICATION", "ADD_ACTIVITY", ctx)
     assert any("待确认" in v for v in result.violations)
+
+
+def test_same_destination_does_not_touch_locked_constraint():
+    ctx = _ctx(
+        current_phase="post_plan_feedback",
+        current_destination="北京",
+        immutable_constraints={"destination": "北京", "budget": 6000},
+    )
+    entities = TravelIntentEntities(destination="北京", add_categories=["人文"])
+    result = WorkflowStateValidator().validate(entities, "PLAN_MODIFICATION", "APPLY_REVIEW_FIXES", ctx)
+    assert result.touches_locked_constraint is False
+    assert not any("覆盖已确认" in violation for violation in result.violations)
+
+
+def test_different_destination_touches_locked_constraint():
+    ctx = _ctx(
+        current_phase="post_plan_feedback",
+        current_destination="北京",
+        immutable_constraints={"destination": "北京", "budget": 6000},
+    )
+    entities = TravelIntentEntities(destination="上海")
+    result = WorkflowStateValidator().validate(entities, "PLAN_MODIFICATION", "REPLAN", ctx)
+    assert result.touches_locked_constraint is True
+    assert any("覆盖已确认" in violation for violation in result.violations)
