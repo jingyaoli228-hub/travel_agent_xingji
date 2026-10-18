@@ -214,7 +214,18 @@ Page({
     if (this.data.busy) return
     this.setData({ busy: true, phase: 'planning', progressText: '正在按评审问题自动修正…' })
     this.startProgress()
-    try { await this.advance(await api.postChat(this._tripId, '请根据评审问题自动修正行程，仍不达标时保留草稿并列出问题。', wx.getStorageSync('travel-agent:user-id'))) }
+    try {
+      const userId = wx.getStorageSync('travel-agent:user-id')
+      let result = await api.postChat(this._tripId, '请根据评审问题自动修正行程，仍不达标时保留草稿并列出问题。', userId)
+      if (result.need_user_input && result.current_node === 'clarify_post_plan') {
+        result = await api.postChat(
+          this._tripId,
+          '直接按评审建议修正：不改目的地、日期、预算、必去和不想去；新增内容优先，装不下的放候补，无需再次确认。',
+          userId
+        )
+      }
+      await this.advance(result)
+    }
     catch (error) { this.showPlanningError(error) }
   },
 
