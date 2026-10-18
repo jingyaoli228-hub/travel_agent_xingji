@@ -1,0 +1,8 @@
+<view class="xj-chat {{fixed?'xj-chat--fixed':''}}" style="{{fixed?'bottom:'+bottom+'rpx':''}}">
+  <view class="xj-icon xj-icon--spark-navy"></view>
+  <input class="xj-chat__input" value="{{value}}" placeholder="{{placeholder}}" placeholder-class="xj-chat__ph" confirm-type="send" disabled="{{disabled}}" adjust-position="{{true}}" bindinput="onInput" bindconfirm="onSend" bindfocus="onFocus" bindblur="onBlur"/>
+  <view wx:if="{{showMic}}" class="xj-chat__mic" bindtouchstart="onMicStart" bindtouchend="onMicEnd"><view class="xj-icon xj-icon--mic-{{recording?'orange':'grey'}}"></view></view>
+  <view class="xj-chat__send {{value&&!sending?'':'is-off'}}" bindtap="onSend">
+    <view wx:if="{{sending}}" class="xj-chat__spin"></view><view wx:else class="xj-icon xj-icon--send-white"></view>
+  </view>
+</view>

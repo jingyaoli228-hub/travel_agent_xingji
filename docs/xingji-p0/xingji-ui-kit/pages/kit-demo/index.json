@@ -1,0 +1,25 @@
+{
+  "navigationBarTitleText": "行迹 UI Kit · 组件",
+  "usingComponents": {
+    "xj-nav-bar": "/components/xj-nav-bar/index",
+    "xj-button": "/components/xj-button/index",
+    "xj-chip": "/components/xj-chip/index",
+    "xj-score-chip": "/components/xj-score-chip/index",
+    "xj-quality-badge": "/components/xj-quality-badge/index",
+    "xj-itinerary-card": "/components/xj-itinerary-card/index",
+    "xj-transit": "/components/xj-transit/index",
+    "xj-empty-slot": "/components/xj-empty-slot/index",
+    "xj-alert-bar": "/components/xj-alert-bar/index",
+    "xj-offline-bar": "/components/xj-offline-bar/index",
+    "xj-chat-bar": "/components/xj-chat-bar/index",
+    "xj-day-tabs": "/components/xj-day-tabs/index",
+    "xj-bottom-sheet": "/components/xj-bottom-sheet/index",
+    "xj-node-card": "/components/xj-node-card/index",
+    "xj-toast": "/components/xj-toast/index",
+    "xj-conflict-preview": "/components/xj-conflict-preview/index",
+    "xj-skeleton": "/components/xj-skeleton/index",
+    "xj-trip-item": "/components/xj-trip-item/index",
+    "xj-import-result": "/components/xj-import-result/index",
+    "xj-empty-state": "/components/xj-empty-state/index"
+  }
+}

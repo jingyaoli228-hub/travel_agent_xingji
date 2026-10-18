@@ -1,0 +1,1 @@
+<view class="xj-score" bindtap="onTap"><view class="xj-icon xj-icon--star-dark"></view><text class="xj-score__num">{{score}}</text><text wx:if="{{suffix}}" class="xj-score__suf">{{suffix}}</text></view>

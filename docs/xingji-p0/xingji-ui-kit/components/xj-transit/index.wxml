@@ -1,0 +1,1 @@
+<view class="xj-transit {{estimated?'is-est':''}}" bindtap="onTap"><view class="xj-transit__line"></view><view class="xj-icon xj-icon--{{mode}}-grey"></view><text wx:if="{{estimated}}" class="xj-transit__est">≈</text><text>{{text}}</text><text wx:if="{{estimated}}" class="xj-transit__tag">估算</text><slot></slot></view>

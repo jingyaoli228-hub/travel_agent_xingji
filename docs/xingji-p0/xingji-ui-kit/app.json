@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/kit-demo/index",
+    "pages/kit-map/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "行迹 UI Kit",
+    "navigationBarBackgroundColor": "#F7F5F0",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F7F5F0"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

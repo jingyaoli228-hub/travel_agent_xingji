@@ -1,0 +1,73 @@
+# Phase-1 Tool Runtime configuration. Read by travel_agent/tool_runtime/config.py
+# (cached with mtime-based invalidation, same pattern as config/intent_fusion.yaml)
+# -- change values here, no code redeploy needed. Any tool name not listed
+# under `tools:` falls back to the `default:` block.
+
+default:
+  timeout_seconds: 10
+  cache_ttl_seconds: 0          # 0 = caching disabled by default
+  circuit_breaker:
+    failure_threshold: 5
+    cooldown_seconds: 60
+
+tools:
+  amap_places.search_places:
+    timeout_seconds: 10
+    cache_ttl_seconds: 86400     # "map" tier
+    circuit_breaker:
+      failure_threshold: 5
+      cooldown_seconds: 60
+
+  amap_places.get_place_details:
+    timeout_seconds: 10
+    cache_ttl_seconds: 86400
+    circuit_breaker:
+      failure_threshold: 5
+      cooldown_seconds: 60
+
+  amap_routes.calculate_route:
+    timeout_seconds: 10
+    cache_ttl_seconds: 86400
+    circuit_breaker:
+      failure_threshold: 5
+      cooldown_seconds: 60
+
+  weather.get_weather:
+    timeout_seconds: 5
+    cache_ttl_seconds: 1800
+
+  search.search_travel_guides:
+    timeout_seconds: 15
+    cache_ttl_seconds: 43200
+
+  xhs_search.search:
+    timeout_seconds: 20
+    cache_ttl_seconds: 21600
+    circuit_breaker:
+      failure_threshold: 3
+      cooldown_seconds: 120
+
+  visa.search_visa_information:
+    timeout_seconds: 5
+    cache_ttl_seconds: 86400
+
+  # Round-6: Travel RAG parallel retrieval (see travel_agent/rag/retrievers/).
+  # dense/keyword/metadata query the mostly-static travel_guides collection,
+  # so a short cache is safe. episodic/profile read per-user memory that can
+  # change turn-to-turn -- no caching until Phase 4 wires proper cache
+  # invalidation on profile/episodic writes (design doc section 33).
+  rag.dense_retriever:
+    timeout_seconds: 5
+    cache_ttl_seconds: 300
+  rag.keyword_retriever:
+    timeout_seconds: 5
+    cache_ttl_seconds: 300
+  rag.metadata_retriever:
+    timeout_seconds: 5
+    cache_ttl_seconds: 300
+  rag.episodic_retriever:
+    timeout_seconds: 5
+    cache_ttl_seconds: 0
+  rag.profile_retriever:
+    timeout_seconds: 5
+    cache_ttl_seconds: 0

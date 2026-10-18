@@ -1,0 +1,6 @@
+.xj-sk__card{display:flex;gap:24rpx;padding:28rpx;border-radius:var(--xj-radius-md);background:var(--xj-card);border:2rpx solid var(--xj-line);margin-bottom:16rpx}
+.xj-sk__col{flex:1}
+.xj-sk__b{border-radius:var(--xj-radius-xs);background:#ECE8E0}
+.xj-sk__map{border-radius:var(--xj-radius-md);width:100%}
+.xj-sk.is-anim .xj-sk__b{background:linear-gradient(90deg,#ECE8E0 25%,#F5F2EC 50%,#ECE8E0 75%);background-size:400% 100%;animation:xjsk 1.4s ease infinite}
+@keyframes xjsk{0%{background-position:100% 0}100%{background-position:0 0}}

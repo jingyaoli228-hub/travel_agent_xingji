@@ -1,0 +1,41 @@
+# LLM-as-Judge evaluation weights (Round-5 Phase 6). Read by
+# travel_agent/evaluation/config.py (cached with mtime-based invalidation,
+# same pattern as config/intent_fusion.yaml / config/tool_runtime.yaml) --
+# change values here, no code redeploy needed. Weights should sum to 1.0.
+
+weights:
+  intent_understanding: 0.25
+  destination_relevance: 0.20
+  activity_matching: 0.20
+  personalization: 0.15
+  planning_feasibility: 0.10
+  response_quality: 0.10
+
+# Round-6 Phase 6: StrictTravelEvaluator (travel_agent/evaluation/llm_judge.py).
+# A separate, graph-wired evaluator from the LLMJudge/weights above -- see
+# that module's docstring. strict_weights is a point budget (sums to 100),
+# not fractional weights.
+strict_weights:
+  requirement_adherence: 20
+  user_profile_alignment: 15
+  destination_specificity: 15
+  activity_richness: 15
+  activity_diversity: 10
+  itinerary_feasibility: 15
+  evidence_and_accuracy: 5
+  presentation_quality: 5
+
+hard_penalties:
+  wrong_destination: -30
+  missed_explicit_activity: -20
+  violated_preserve_scope: -20
+  unsupported_claim: -10
+  empty_day: -10
+  geographically_impossible: -15
+  repeated_rejected_activity: -12
+  missing_activity_description: -8
+  generic_destination_plan: -10
+
+max_revision_rounds: 2
+pass_threshold: 80
+notes_threshold: 65

@@ -1,0 +1,7 @@
+.xj-days{width:100%;white-space:nowrap}
+.xj-days__in{display:inline-flex;gap:16rpx;padding:4rpx 0}
+.xj-days__item{position:relative;display:inline-flex;align-items:center;height:60rpx;padding:0 28rpx;border-radius:var(--xj-radius-pill);background:var(--xj-card);border:2rpx solid var(--xj-line);font-size:var(--xj-font-caption);color:var(--xj-text2);box-sizing:border-box}
+.xj-days__item.is-on{background:var(--xj-primary);border-color:var(--xj-primary);color:#fff;font-weight:700}
+.xj-days__today{margin-left:8rpx;padding:0 8rpx;border-radius:8rpx;background:var(--xj-success-light);color:var(--xj-success);font-size:20rpx}
+.xj-days__s{font-weight:400}
+.xj-days__dot{position:absolute;top:4rpx;right:8rpx;width:14rpx;height:14rpx;border-radius:50%;background:var(--xj-warn);border:2rpx solid #fff}

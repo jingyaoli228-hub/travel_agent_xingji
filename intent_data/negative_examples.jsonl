@@ -1,0 +1,10 @@
+{"text": "你好", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "谢谢", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "在吗", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "帮我写首诗", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "今天几号", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "你叫什么名字", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "帮我查下明天的会议", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "给我讲讲历史", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "你能帮我编程吗", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}
+{"text": "推荐个游戏", "intent": "OUT_OF_SCOPE", "kind": "negative", "review_status": "approved"}

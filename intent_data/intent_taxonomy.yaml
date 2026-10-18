@@ -1,0 +1,102 @@
+# Stage-3 intent taxonomy: three layers (task_type / operation / target) per
+# the design doc, plus feedback-type -> experience-category impact used by
+# fusion_resolver.py to build IntentResult.state_patch.
+#
+# This file is data, not code -- travel_agent/intent/embedding_router.py and
+# travel_agent/intent/fusion_resolver.py read it at runtime (cached, versioned
+# via version.json). Extend it by appending rows; no code change required.
+
+task_types:
+  - TRIP_CREATION
+  - REQUIREMENT_MANAGEMENT
+  - INFORMATION_QUERY
+  - OPTION_DISCOVERY
+  - PLAN_MODIFICATION
+  - PLAN_CONFIRMATION
+  - GENERAL_CONVERSATION
+  - OUT_OF_SCOPE
+
+operations:
+  - CREATE
+  - ADD
+  - REMOVE
+  - REPLACE
+  - MOVE
+  - REPLAN
+  - COMPARE
+  - SELECT
+  - CONFIRM
+  - REJECT
+  - QUERY
+  - EXPLAIN
+
+targets:
+  - REQUIREMENT
+  - DESTINATION
+  - REGION
+  - ACTIVITY
+  - RESTAURANT
+  - HOTEL
+  - TRANSPORT
+  - DAY_PLAN
+  - FULL_ITINERARY
+  - WEATHER
+  - VISA
+  - BUDGET
+
+# primary_intent -> (task_type, operation, target). Used as the canonical
+# lookup when pattern/embedding/llm results need to be normalized onto the
+# same three-layer shape before fusion.
+intents:
+  CREATE_TRIP: {task_type: TRIP_CREATION, operation: CREATE, target: FULL_ITINERARY}
+  CONTINUE_TRIP: {task_type: TRIP_CREATION, operation: CREATE, target: FULL_ITINERARY}
+  MODIFY_REQUIREMENT: {task_type: REQUIREMENT_MANAGEMENT, operation: REPLACE, target: REQUIREMENT}
+  QUERY_WEATHER: {task_type: INFORMATION_QUERY, operation: QUERY, target: WEATHER}
+  QUERY_VISA: {task_type: INFORMATION_QUERY, operation: QUERY, target: VISA}
+  QUERY_TRANSPORT: {task_type: INFORMATION_QUERY, operation: QUERY, target: TRANSPORT}
+  QUERY_NEARBY: {task_type: INFORMATION_QUERY, operation: QUERY, target: ACTIVITY}
+  QUERY_ACTIVITY_DETAIL: {task_type: INFORMATION_QUERY, operation: QUERY, target: ACTIVITY}
+  COMPARE_REGIONS: {task_type: INFORMATION_QUERY, operation: COMPARE, target: REGION}
+  REQUEST_MORE_OPTIONS: {task_type: OPTION_DISCOVERY, operation: QUERY, target: ACTIVITY}
+  ADD_ACTIVITY: {task_type: PLAN_MODIFICATION, operation: ADD, target: ACTIVITY}
+  REMOVE_ACTIVITY: {task_type: PLAN_MODIFICATION, operation: REMOVE, target: ACTIVITY}
+  REPLACE_ACTIVITY: {task_type: PLAN_MODIFICATION, operation: REPLACE, target: ACTIVITY}
+  # Round-5: "把第3天的Ubud换成努沙佩尼达，我想浮潜和滑翔伞" -- distinct from
+  # REPLACE_ACTIVITY (target: ACTIVITY): the thing being swapped is a whole
+  # region's worth of a day's content, not one named activity. See
+  # travel_agent/intent/pattern_parser.py::_extract_region_replacement.
+  REGION_REPLACEMENT: {task_type: PLAN_MODIFICATION, operation: REPLACE, target: REGION}
+  MOVE_ACTIVITY: {task_type: PLAN_MODIFICATION, operation: MOVE, target: ACTIVITY}
+  REPLAN_PARTIAL_DAY: {task_type: PLAN_MODIFICATION, operation: REPLAN, target: DAY_PLAN}
+  REPLAN_DAY: {task_type: PLAN_MODIFICATION, operation: REPLAN, target: DAY_PLAN}
+  REPLAN_FULL_TRIP: {task_type: PLAN_MODIFICATION, operation: REPLAN, target: FULL_ITINERARY}
+  SELECT_ACTIVITY: {task_type: PLAN_MODIFICATION, operation: SELECT, target: ACTIVITY}
+  CONFIRM_REQUIREMENT: {task_type: PLAN_CONFIRMATION, operation: CONFIRM, target: REQUIREMENT}
+  CONFIRM_SELECTION: {task_type: PLAN_CONFIRMATION, operation: CONFIRM, target: ACTIVITY}
+  CONFIRM_ITINERARY: {task_type: PLAN_CONFIRMATION, operation: CONFIRM, target: FULL_ITINERARY}
+  REJECT_CURRENT_OPTIONS: {task_type: PLAN_MODIFICATION, operation: REJECT, target: ACTIVITY}
+  OUT_OF_SCOPE: {task_type: OUT_OF_SCOPE, operation: EXPLAIN, target: FULL_ITINERARY}
+  AMBIGUOUS_MODIFICATION: {task_type: PLAN_MODIFICATION, operation: REPLAN, target: ACTIVITY}
+
+# feedback_type -> which TravelExperience.type tags to de-emphasize/emphasize,
+# plus any non-category side effects (transport preference, pace, budget).
+# fusion_resolver.py folds this into IntentResult.state_patch so downstream
+# agents (Requirement/Research/Planner) receive a structured patch instead of
+# free text.
+feedback_types:
+  TOO_TRADITIONAL: {reduce_types: [landmark, culture], add_types: []}
+  TOO_TOURISTIC: {reduce_types: [landmark], add_types: [], prefer_niche: true}
+  TOO_FEW_OPTIONS: {reduce_types: [], add_types: [], trigger_more_research: true}
+  TOO_TIGHT: {reduce_types: [], add_types: [], daily_attraction_count_delta: -1}
+  TOO_RELAXED: {reduce_types: [], add_types: [], daily_attraction_count_delta: 1}
+  TOO_MUCH_WALKING: {reduce_types: [], add_types: [], transport_preference: drive}
+  TOO_EXPENSIVE: {reduce_types: [], add_types: [], prefer_cheap: true}
+  TOO_FAR: {reduce_types: [], add_types: [], tighten_region: true}
+  PREFERS_LOCAL_EXPERIENCE: {reduce_types: [], add_types: [local_life]}
+  PREFERS_NIGHTLIFE: {reduce_types: [], add_types: [nightlife]}
+  PREFERS_OUTDOOR: {reduce_types: [], add_types: [nature, surf, beach]}
+  PREFERS_WELLNESS: {reduce_types: [], add_types: [wellness]}
+  PREFERS_SHOPPING: {reduce_types: [], add_types: [shopping]}
+  PREFERS_CULTURE: {reduce_types: [], add_types: [culture]}
+  PREFERS_FOOD: {reduce_types: [], add_types: [food]}
+  PREFERS_PHOTOGRAPHY: {reduce_types: [], add_types: [photography]}

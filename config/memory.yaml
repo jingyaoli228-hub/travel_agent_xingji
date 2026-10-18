@@ -1,0 +1,17 @@
+# Layered memory config (Round-6 Phase 4). Read by travel_agent/memory/config.py
+# (cached with mtime-based invalidation, same pattern as config/rag.yaml).
+
+max_working_messages: 12
+working_memory_ttl_seconds: 86400   # 24h, independent of settings.redis_ttl_seconds
+
+episodic_top_k: 5
+profile_top_k: 6
+
+# An episode is written to the episodic_memory Chroma collection only when
+# its heuristic importance_score clears this bar (JSONL is always written
+# regardless, as the ground-truth ledger / RAG_DEGRADED fallback source).
+episodic_importance_threshold: 0.3
+
+# A profile statement upgrades TENTATIVE_PROFILE -> STABLE_PROFILE once it has
+# been reinforced (the same preference_dimension seen again) this many times.
+profile_stable_evidence_count: 3

@@ -1,0 +1,7 @@
+{
+  "version": "0.1.0",
+  "intent_example_count": 192,
+  "feedback_example_count": 80,
+  "negative_example_count": 10,
+  "updated": "2026-07-23"
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "case_id": "destination_001_bali_region_split",
+    "category": "destination",
+    "user_request": "我们要去巴厘岛玩5天",
+    "expected_goal": "识别巴厘岛为需要区域拆分的复杂目的地，提供Ubud/Canggu/Seminyak/Nusa Penida等候选区域及各自亮点，询问用户希望安排哪些区域"
+  },
+  {
+    "case_id": "destination_002_nusa_penida_profile",
+    "category": "destination",
+    "user_request": "帕尼达岛有什么特色玩法？",
+    "expected_goal": "回应中体现浮潜、潜水、悬崖景观、跳岛等海岛特色体验，而不是泛泛的通用景点推荐，也不应该推荐与该区域气质不符的美术馆/博物馆类内容"
+  },
+  {
+    "case_id": "destination_003_ubud_profile",
+    "category": "destination",
+    "user_request": "Ubud一般都玩什么？",
+    "expected_goal": "回应体现瑜伽、梯田、文化、手作工作坊等Ubud标志性体验"
+  },
+  {
+    "case_id": "destination_004_simple_destination_no_split",
+    "category": "destination",
+    "user_request": "我们打算去东京玩4天",
+    "expected_goal": "东京不应被判定为需要区域拆分的复杂目的地，直接按整体目的地继续收集需求，不询问区域拆分"
+  }
+]

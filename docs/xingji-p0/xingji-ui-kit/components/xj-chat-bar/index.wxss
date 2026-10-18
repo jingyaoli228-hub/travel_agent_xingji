@@ -1,0 +1,9 @@
+.xj-chat{display:flex;align-items:center;gap:16rpx;height:var(--xj-chat-h);padding:0 12rpx 0 32rpx;background:var(--xj-card);border-radius:var(--xj-radius-pill);border:2rpx solid var(--xj-line);box-shadow:var(--xj-shadow-float);box-sizing:border-box}
+.xj-chat--fixed{position:fixed;left:24rpx;right:24rpx;z-index:var(--xj-z-chat)}
+.xj-chat__input{flex:1;height:100%;font-size:var(--xj-font-sm);color:var(--xj-text)}
+.xj-chat__ph{color:var(--xj-text3)}
+.xj-chat__mic{padding:8rpx;display:flex}
+.xj-chat__send{width:76rpx;height:76rpx;border-radius:50%;background:var(--xj-primary);display:flex;align-items:center;justify-content:center;--xj-icon-size:32rpx}
+.xj-chat__send.is-off{opacity:.4}
+.xj-chat__spin{width:30rpx;height:30rpx;border-radius:50%;border:4rpx solid #fff;border-right-color:transparent;animation:xjspin2 .8s linear infinite}
+@keyframes xjspin2{to{transform:rotate(360deg)}}

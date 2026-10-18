@@ -1,0 +1,27 @@
+[
+  {
+    "case_id": "feedback_001_too_touristic",
+    "category": "feedback",
+    "user_request": "这些景点太游客了，重新找小众一点的",
+    "expected_goal": "识别为负反馈(太大众化/太游客)，降低landmark类地标权重，触发补充搜索local_life/小众类体验候选，并在回应中说明已减少大众景点、增加小众体验"
+  },
+  {
+    "case_id": "feedback_002_add_yoga_day3_afternoon",
+    "category": "feedback",
+    "user_request": "第三天下午再增加两个乌布附近的瑜伽课，其他安排不要动。",
+    "prior_state": {"current_phase": "post_plan_feedback", "current_plan_summary": {"day_count": 5}, "current_regions": ["乌布", "Canggu"]},
+    "expected_goal": "识别为ADD_ACTIVITY，day_index为3，time_period为AFTERNOON，add_categories包含wellness，preserve_other_days为true，仅重排第3天，其他天保持不变"
+  },
+  {
+    "case_id": "feedback_003_add_nightlife",
+    "category": "feedback",
+    "user_request": "晚上想去点有意思的夜生活，加两个酒吧或livehouse",
+    "expected_goal": "识别为ADD_ACTIVITY，add_categories包含nightlife，触发ResearchOrchestrator搜索酒吧/livehouse类体验"
+  },
+  {
+    "case_id": "feedback_004_too_tiring",
+    "category": "feedback",
+    "user_request": "这几天景点排得太多了，感觉会很累，能不能少一点",
+    "expected_goal": "识别为负反馈(节奏太紧)，降低每日景点数量，回应中体现放松节奏的调整"
+  }
+]

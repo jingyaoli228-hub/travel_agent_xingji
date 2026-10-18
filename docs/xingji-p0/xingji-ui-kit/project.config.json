@@ -1,0 +1,13 @@
+{
+  "appid": "touristappid",
+  "projectname": "xingji-ui-kit",
+  "compileType": "miniprogram",
+  "libVersion": "3.0.0",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "condition": {}
+}

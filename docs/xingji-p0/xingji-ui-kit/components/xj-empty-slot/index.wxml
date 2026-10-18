@@ -1,0 +1,5 @@
+<view class="xj-es" hover-class="xj-es--hover" bindtap="onTap">
+  <text wx:if="{{time}}" class="xj-es__time">{{time}}</text>
+  <text class="xj-es__l">{{label}}</text>
+  <text class="xj-es__act">{{actionText}}</text>
+</view>

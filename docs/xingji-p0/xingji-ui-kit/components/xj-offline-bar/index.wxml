@@ -1,0 +1,5 @@
+<view class="xj-off">
+  <view class="xj-icon xj-icon--offline-white"></view>
+  <view class="xj-off__b"><text class="xj-off__t">{{text}}</text><text class="xj-off__s">{{sub}}</text></view>
+  <text wx:if="{{actionText}}" class="xj-off__act" bindtap="onAction">{{actionText}}</text>
+</view>

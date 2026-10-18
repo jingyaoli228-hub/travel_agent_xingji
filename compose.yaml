@@ -1,0 +1,139 @@
+name: travel-agent
+
+x-app: &app
+  build:
+    context: .
+    target: api
+  env_file: .env
+  environment:
+    ENVIRONMENT: production
+    DEBUG: "false"
+    REQUIRE_PERSISTENT_SERVICES: "true"
+    DATABASE_URL: ${DATABASE_URL}
+    REDIS_URL: redis://redis:6379/0
+    CHROMA_HOST: chroma
+    CHROMA_PORT: "8000"
+    CHROMA_SSL: "false"
+    XDG_CACHE_HOME: /home/app/.cache
+  volumes:
+    - model_cache:/home/app/.cache
+    - ./data:/legacy-data:ro
+    - ./runtime/migrations:/migration-output
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+
+services:
+  api:
+    <<: *app
+    command: ["uvicorn", "travel_agent.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      chroma: {condition: service_started}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 20s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    mem_limit: 576m
+    cpus: 0.75
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "travel_agent.worker"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      chroma: {condition: service_started}
+    healthcheck:
+      test: ["CMD-SHELL", "rq info --url redis://redis:6379/0 | grep -Eq '[1-9][0-9]* workers'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    mem_limit: 1024m
+    cpus: 2.0
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: travel_agent
+      POSTGRES_USER: travel_agent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: ["postgres", "-c", "shared_buffers=96MB", "-c", "max_connections=30", "-c", "work_mem=4MB"]
+    volumes:
+      - ./runtime/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travel_agent -d travel_agent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    mem_limit: 320m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "80mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - ./runtime/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    mem_limit: 112m
+    cpus: 0.25
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+
+  chroma:
+    image: chromadb/chroma:1.5.9
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /data
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - ./runtime/chroma:/data
+    restart: unless-stopped
+    mem_limit: 448m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  gateway:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_AMAP_JS_API_KEY: ${VITE_AMAP_JS_API_KEY:-}
+        VITE_AMAP_JS_SECURITY_CODE: ${VITE_AMAP_JS_SECURITY_CODE:-}
+    environment:
+      DOMAIN: ${DOMAIN:-:80}
+    ports:
+      # Tunnel-only until real authentication and ownership checks exist.
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./runtime/caddy-data:/data
+      - ./runtime/caddy-config:/config
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: 0.25
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  model_cache:
+

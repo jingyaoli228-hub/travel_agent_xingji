@@ -1,0 +1,13 @@
+{
+  "pages": ["pages/index/index"],
+  "window": {
+    "navigationBarTitleText": "行迹",
+    "navigationBarBackgroundColor": "#b8cbe1",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#b8cbe1",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

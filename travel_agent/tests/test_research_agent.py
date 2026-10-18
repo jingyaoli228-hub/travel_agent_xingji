@@ -1,0 +1,154 @@
+"""Tests for the Research Orchestrator's Stage-2 behaviors: tag-driven search
+plans and the Research Feedback Loop's offline intent parsing.
+
+These force the LLM off (`no_llm` fixture, see `conftest.py`) so they exercise
+the deterministic/heuristic paths.
+"""
+
+from travel_agent.agents.research_agent import ResearchOrchestratorAgent
+from travel_agent.schemas.destination import RegionCandidate
+from travel_agent.schemas.travel_requirement import TravelRequirement
+
+
+def test_search_plan_adds_music_tag_on_top_of_baseline(no_llm):
+    """Test1: a music/vinyl preference should ADD music-tagged queries to the
+    baseline discovery set, not replace it -- so the user still gets landmarks
+    *and* Tower-Records/livehouse-style results, not just one or the other."""
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(destination="东京", experience_preferences=["music"])
+    plan = agent._build_search_plan(req)
+    tags = {tag for tag, _query, _place_type in plan}
+    assert "music" in tags
+    assert "landmark" in tags  # baseline breadth preserved
+    music_queries = [q for tag, q, _ in plan if tag == "music"]
+    assert any("黑胶" in q or "livehouse" in q for q in music_queries)
+
+
+def test_search_plan_without_preferences_stays_broad(no_llm):
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(destination="东京")
+    plan = agent._build_search_plan(req)
+    tags = {tag for tag, _q, _pt in plan}
+    assert {"landmark", "culture", "nature", "shopping", "food"}.issubset(tags)
+
+
+def test_search_plan_region_scoped_uses_region_typical_types(no_llm):
+    """Bali/Canggu should search surf/beach/nightlife, not generic landmarks."""
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(
+        destination="巴厘岛",
+        region_split_confirmed=True,
+        region_preferences=["Canggu"],
+        region_candidates=[
+            {"name": "Canggu", "highlights": ["冲浪"], "typical_experience_types": ["surf", "beach", "nightlife"]},
+        ],
+    )
+    plan = agent._build_search_plan(req, region="Canggu")
+    tags = {tag for tag, _q, _pt in plan}
+    assert tags == {"surf", "beach", "nightlife", "food"}
+
+
+def test_search_plan_uses_compact_region_hint_for_amap(no_llm):
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(
+        destination="北京",
+        region_candidates=[
+            {"name": "东城·故宫/天安门/王府井", "typical_experience_types": ["culture"]},
+        ],
+    )
+    plan = agent._build_search_plan(req, region="东城·故宫/天安门/王府井")
+    assert all("北京 东城" in query for _tag, query, _place_type in plan)
+    assert all("故宫/天安门/王府井" not in query for _tag, query, _place_type in plan)
+
+
+def test_auto_select_prefers_user_types_covers_regions_and_avoids_cafes(no_llm):
+    agent = ResearchOrchestratorAgent()
+    candidates = {"experiences": {
+        "culture": [
+            {"name": "故宫博物院", "region": "东城", "popularity": 0, "rating": 4.9},
+            {"name": "国家博物馆", "region": "东城", "popularity": 0, "rating": 4.8},
+        ],
+        "landmark": [
+            {"name": "慕田峪长城", "region": "怀柔", "popularity": 0, "rating": 4.8},
+            {"name": "天安门", "region": "东城", "popularity": 0, "rating": 4.7},
+        ],
+        "architecture": [
+            {"name": "明城墙遗址公园", "region": "东城", "popularity": 0, "rating": 4.6},
+        ],
+        "shopping": [
+            {"name": "星海钢琴商城", "region": "东城", "popularity": 100, "rating": 5.0},
+        ],
+        "food": [
+            {"name": "出走咖啡", "region": "东城", "popularity": 100, "rating": 5.0},
+            {"name": "老北京涮肉", "region": "东城", "popularity": 0, "rating": 4.5},
+        ],
+    }}
+
+    selected = agent.auto_select(candidates, daily_count=2, days=2, preferred_types=["culture", "food"])["experiences"]
+    names = [item["name"] for item in selected]
+    assert "故宫博物院" in names
+    assert "慕田峪长城" in names
+    assert "星海钢琴商城" not in names
+    assert names.index("老北京涮肉") < names.index("出走咖啡")
+
+
+def test_parse_feedback_intent_niche_architecture(no_llm):
+    """Test3: "这些太游客了，多找一些小众建筑" -> architecture + niche."""
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(destination="东京")
+    intent = agent.parse_feedback_intent("这些地方太游客了，多找一些小众建筑", req)
+    assert intent["category"] == "architecture"
+    assert intent["popularity"] == "niche"
+
+
+def test_parse_feedback_intent_defaults_to_mainstream(no_llm):
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(destination="东京")
+    intent = agent.parse_feedback_intent("挺好的，没什么意见", req)
+    assert intent["popularity"] == "mainstream"
+
+
+def test_run_feedback_does_not_touch_visa_weather_flight(no_llm, stub_external_calls):
+    """The feedback loop must be scoped/incremental -- never a blind full
+    re-run of visa/weather/flight workers."""
+    from travel_agent.schemas.research_result import ResearchResult
+
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(destination="东京")
+    existing = ResearchResult(visa_info=None, weather=None, flights=[])
+
+    updated = agent.run_feedback(req, existing, "这些太游客了，多找一些小众建筑")
+
+    assert updated.visa_info is None
+    assert updated.weather is None
+    assert updated.flights == []
+    assert len(updated.experiences) >= len(existing.experiences)
+    assert all(e.type == "architecture" for e in updated.experiences[len(existing.experiences):])
+
+
+# -- Round-5: dynamic query generation (Phase 5) regression test for the
+# diagnosed bug -- an unrecognized activity request ("浮潜"/"滑翔伞") used to
+# silently canonicalize down to a generic "local_life" search
+# ("{dest} 市集 社区活动"), finding nothing related to what the user asked
+# for. Exercises the REAL skills/ directory (snorkeling_activities/
+# paragliding_activities, added in Phase 2) rather than an isolated one, so
+# this proves the actual shipped configuration, not just the mechanism. -----
+
+
+def test_run_expansion_region_profile_finds_snorkeling_and_paragliding_not_local_life(no_llm, stub_external_calls):
+    from travel_agent.schemas.research_result import ResearchResult
+
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(destination="巴厘岛")
+    existing = ResearchResult()
+    region_candidate = RegionCandidate(
+        name="Nusa Penida",
+        identity=["island", "marine", "adventure"],
+        signature_experiences=["浮潜", "滑翔伞"],
+    )
+
+    updated = agent.run_expansion(req, existing, missing_categories=[], region="Nusa Penida", region_candidate=region_candidate)
+
+    new_types = {e.type for e in updated.experiences}
+    assert "local_life" not in new_types
+    assert new_types == {"snorkeling", "paragliding"}

@@ -1,0 +1,99 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}body{width:1600px;background:#F7F5F0;font-family:"Noto Sans CJK SC",sans-serif;color:#1B2333;padding:44px 52px}
+h1{font-size:32px}h1 small{font-size:14px;color:#5F6878;font-weight:400;margin-left:12px}.sub{color:#5F6878;font-size:13px;margin:8px 0 24px;line-height:1.6}
+.g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;align-items:start}.s{background:#fff;border-radius:16px;padding:18px 20px;box-shadow:0 6px 20px rgba(20,30,50,.05)}
+.t{font-size:12px;font-weight:700;letter-spacing:1px;color:#666E7D;margin-bottom:12px}.t b{color:#1E3A6E}
+.r{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.an{font-size:10.5px;color:#9A3412;font-family:monospace;border:1px dashed #C2410C;padding:1px 5px;border-radius:4px;background:#FFF8F4}
+.btn{height:44px;padding:0 22px;border-radius:22px;font-size:15px;font-weight:700;display:inline-flex;align-items:center}
+.p{background:#C2410C;color:#fff;box-shadow:0 4px 12px #C2410C47}.d{background:#1E3A6E;color:#fff}.sc{background:#E6ECF6;color:#1E3A6E}.tx{color:#1E3A6E;padding:0 6px}.dis{background:#E8E4DC;color:#9AA1AD}
+.chip{height:32px;padding:0 13px;border-radius:16px;font-size:13px;display:inline-flex;align-items:center;border:1px solid #E8E4DC;color:#5F6878;background:#fff}
+.on{background:#1E3A6E;color:#fff;border-color:#1E3A6E}.mu{background:#E3F4EC;color:#1F7A52;border-color:transparent}.ex{background:#F4F4F4;color:#666E7D;text-decoration:line-through;border-color:transparent}
+.card{display:flex;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid #E8E4DC;background:#fff}.act{border-color:#FF7A45;box-shadow:0 0 0 2px #FFEDE4}
+.cf{border-color:#B42318;box-shadow:0 0 0 2px #FDECEC}.wt{border-style:dashed;background:#FBFAF7}
+.tm{width:44px;font-size:13px;font-weight:700;color:#1E3A6E}.tm small{display:block;font-weight:400;color:#666E7D;font-size:11px}
+.nm{font-size:15px;font-weight:700}.mt{font-size:12px;color:#5F6878;margin-top:3px}
+.pill{font-size:11px;padding:0 8px;height:20px;line-height:20px;border-radius:10px;display:inline-block;vertical-align:middle;margin-left:4px}
+.lk{color:#1F7A52;background:#E3F4EC}.scr{color:#5F6878;background:#F7F5F0;border:1px solid #E8E4DC;line-height:18px}.scr b{color:#1B2333}
+.trs{font-size:11px;color:#666E7D;padding:5px 0 5px 20px}
+.al{display:flex;gap:8px;align-items:center;padding:10px 12px;border-radius:8px;font-size:13px}.al b{margin-left:auto;color:#1E3A6E}.al i{font-style:normal;font-size:12px;color:#5F6878;border-left:1px solid #0002;padding-left:8px}
+.qb{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:15px;background:#fff;box-shadow:0 2px 8px #0002;font-size:12px;color:#5F6878}.qb b{font-size:16px;color:#1E3A6E}.qb em{font-style:normal;font-size:11px;font-weight:700;padding:0 5px;border-radius:4px}
+table{font-size:12px;border-collapse:collapse;width:100%}td{padding:4px 0;border-bottom:1px solid #F0EDE6}td:last-child{text-align:right;font-family:monospace}
+.ok{color:#1F7A52}.no{color:#B42318}
+.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.sw div{font-size:10.5px}.sw i{display:block;height:34px;border-radius:7px;border:1px solid #0001}.sw small{color:#666E7D;font-family:monospace}
+.btn2{flex:1;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.ph{position:relative;width:100%;height:520px;border-radius:24px;overflow:hidden;background:#EEF0EA;border:6px solid #1a1d24}
+</style></head><body>
+<h1>行迹 UI Kit v2 · 组件规格<small>Direction A 藏青 + 暖橙 · 750rpx 设计宽（标注 rpx，1px = 2rpx）· 行程页即首页</small></h1>
+<div class="sub">颜色分工：<b style="color:#C2410C">CTA 橙 #C2410C</b>（主按钮，白字 5.18:1）· <b style="color:#FF7A45">地图橙 #FF7A45</b>（仅当天路线 / 当前位置 / 选中点，不承载文字）· 藏青 #1E3A6E 品牌与 Agent · 单一提醒位 · 抽屉只拖把手和 Day Tab</div>
+<div class="g">
+<div style="display:flex;flex-direction:column;gap:18px">
+<div class="s"><div class="t"><b>TOKENS</b> · 颜色</div><div class="sw">
+<div><i style="background:#1E3A6E"></i>primary<br><small>#1E3A6E</small></div><div><i style="background:#C2410C"></i>cta<br><small>#C2410C</small></div><div><i style="background:#FF7A45"></i>accent(地图)<br><small>#FF7A45</small></div><div><i style="background:#F7F5F0"></i>bg<br><small>#F7F5F0</small></div>
+<div><i style="background:#1B2333"></i>text<br><small>#1B2333</small></div><div><i style="background:#5F6878"></i>text2<br><small>#5F6878</small></div><div><i style="background:#666E7D"></i>text3<br><small>#666E7D</small></div><div><i style="background:#9AA1AD"></i>text-disabled<br><small>#9AA1AD</small></div>
+<div><i style="background:#1F7A52"></i>success<br><small>#1F7A52</small></div><div><i style="background:#E8A317"></i>warn(图形)<br><small>#E8A317</small></div><div><i style="background:#7A5200"></i>warn-text<br><small>#7A5200</small></div><div><i style="background:#B42318"></i>error<br><small>#B42318</small></div></div></div>
+<div class="s"><div class="t"><b>CONTRAST</b> · WCAG 2.1（正文 ≥ 4.5）</div><table>
+<tr><td>白字 / CTA #C2410C</td><td class="ok">5.18 ✓</td></tr><tr><td>白字 / 按下 #9A3412</td><td class="ok">7.31 ✓</td></tr>
+<tr><td>白字 / #FF7A45（旧主按钮）</td><td class="no">2.59 ✗ 弃用</td></tr><tr><td>白字 / 藏青 #1E3A6E</td><td class="ok">11.14 ✓</td></tr>
+<tr><td>text #1B2333 / bg</td><td class="ok">14.44 ✓</td></tr><tr><td>text2 #5F6878 / bg · 白</td><td class="ok">5.16 · 5.62 ✓</td></tr>
+<tr><td>text3 #666E7D / bg · 白</td><td class="ok">4.71 · 5.13 ✓</td></tr><tr><td>text-disabled #9AA1AD / bg</td><td class="no">2.39 仅禁用/装饰</td></tr>
+<tr><td>success #1F7A52 / 浅绿底</td><td class="ok">4.65 ✓</td></tr><tr><td>warn-text #7A5200 / 浅黄底</td><td class="ok">6.38 ✓</td></tr>
+<tr><td>error #B42318 / 浅红底</td><td class="ok">5.76 ✓</td></tr><tr><td>藏青 / primary-light</td><td class="ok">9.38 ✓</td></tr></table></div>
+<div class="s"><div class="t"><b>xj-button</b> · <b>xj-chip</b></div>
+<div class="r"><span class="btn p">✦ 开始规划</span><span class="an">h88 r999 px44 · bg cta</span></div>
+<div class="r"><span class="btn d">保存行程</span><span class="btn sc">换一个</span><span class="btn tx">查看全部 ›</span></div>
+<div class="r"><span class="btn p">◌ 规划中</span><span class="btn dis">disabled</span></div>
+<div class="r" style="margin-top:6px"><span class="chip on">✓ 历史人文</span><span class="chip">自然风光</span><span class="chip mu">★ 必去 · 故宫 ×</span><span class="chip ex">排除 · 购物</span></div><span class="an">chip h64 r999 px28 · 26rpx</span></div>
+<div class="s"><div class="t"><b>xj-quality-badge</b>（点 → 透视面板）· <b>xj-score-chip</b>（餐厅评分）</div>
+<div class="r"><span class="qb"><span class="ok">◈</span>评审 <b>92</b> ›</span><span class="qb"><em style="background:#FFF5DC;color:#7A5200">草稿</em>评审 <b style="color:#7A5200">78</b> ›</span><span class="qb"><em style="background:#FDECEC;color:#B42318">未通过</em><b style="color:#B42318">52</b></span></div>
+<div class="r"><span class="an">pass ≥85 · draft &lt;85 · fail · h60</span></div>
+<div class="r"><span class="pill scr">★ <b>4.7</b></span><span class="pill scr">★ <b>4.5</b> 大众点评</span><span class="an">中性灰 h40，不用橙</span></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:18px">
+<div class="s"><div class="t"><b>xj-nav-bar</b> · <b>xj-alert-bar</b> 单一提醒位 · <b>xj-offline-bar</b></div>
+<div style="display:flex;align-items:center;gap:8px;background:#EEF0EA;border-radius:10px;padding:8px 8px 8px 10px;margin-bottom:6px"><span style="background:#fff;border-radius:15px;height:30px;padding:0 10px;font-size:12px;font-weight:700;color:#1E3A6E;display:flex;align-items:center;box-shadow:0 2px 8px #0001">☰ 我的行程</span><b style="font-size:15px">北京 3 日游</b><span style="margin-left:auto;width:80px;height:28px;border-radius:14px;border:1px solid #0002;background:#fff9;font-size:10px;color:#666E7D;display:flex;align-items:center;justify-content:center">胶囊区</span></div>
+<div class="r"><span class="an">高度 = (胶囊top−状态栏)×2 + 胶囊高 · 右侧留胶囊宽+8px</span></div>
+<div class="al" style="background:#FDECEC;color:#B42318;margin-top:6px">⚠ 路线服务降级，交通为估算<b>重试</b><i>3 条提醒 ⌄</i></div>
+<div class="r" style="margin-top:6px"><span class="an">优先级 error/degraded/offline &gt; quality &gt; risk &gt; info</span></div>
+<div class="al" style="background:#FFF5DC;color:#7A5200">◈ 评审 78：午餐未定<b>看透视</b></div>
+<div class="al" style="background:#3A4252;color:#fff;margin-top:6px">⊘ <span><b style="color:#fff;margin:0">离线 · 显示 10/18 14:20 的版本</b><br><span style="font-size:11px;opacity:.85">只读模式，联网后可修改</span></span><b style="color:#fff">重试</b></div></div>
+<div class="s"><div class="t"><b>xj-itinerary-card</b> · <b>xj-transit</b> · <b>xj-empty-slot</b></div>
+<div class="card act"><div class="tm">09:00<small>2.5h</small></div><div><span class="nm">天坛公园</span><span class="pill lk">🔒 已锁定</span><div class="mt">祈年殿 · 门票 ¥34</div></div></div>
+<div class="trs">┊ 🚇 地铁 18 分钟</div>
+<div class="card" style="border:1.5px dashed #9AA1AD;background:none"><div class="tm" style="color:#666E7D">12:00</div><div style="flex:1;font-size:15px;color:#5F6878">午餐 · 待定</div><b style="font-size:12px;color:#1E3A6E">去挑选 ›</b></div>
+<div class="trs">┆ 🚶 <b>≈</b> 步行 8 分钟 <span style="border:1px dashed #9AA1AD;border-radius:4px;padding:0 4px">估算</span></div>
+<div class="card cf"><div class="tm">15:30<small>2h</small></div><div><span class="nm">国家博物馆</span><div class="mt">需预约</div><div style="font-size:12px;color:#B42318;margin-top:4px">⚠ 仍然加入：结束时间晚于 21:00</div></div></div>
+<div style="height:8px"></div>
+<div class="card wt"><div class="tm">—</div><div><span class="nm" style="color:#5F6878">景山公园</span><span class="pill" style="border:1px dashed #666E7D;color:#666E7D;line-height:18px">候补</span><div class="mt">超出容量，已放入候补</div></div></div>
+<div class="r" style="margin-top:8px"><span class="an">p28 r24 · 时间列 88</span><span class="an">active 地图橙描边</span><span class="an">conflict 红框</span><span class="an">waitlist 虚线</span></div></div>
+<div class="s"><div class="t"><b>xj-conflict-preview</b>（加点）</div>
+<div style="border:1.5px solid #E8A317;border-radius:12px;padding:14px"><b>⚠ 加入「景山公园」后</b>
+<div style="background:#F7F5F0;border-radius:8px;padding:8px 10px;margin:10px 0 6px;font-size:12px;color:#5F6878">Day 1 结束 <s style="color:#666E7D">18:30</s> → <b style="color:#B42318">20:10</b></div>
+<div style="font-size:12px;color:#5F6878;line-height:1.9">● 前门大街顺延 40 分钟<br><span style="color:#B42318">● 晚餐预约 18:00 将赶不上</span></div>
+<div style="display:flex;gap:8px;margin-top:10px"><span class="btn2" style="background:#E6ECF6;color:#1E3A6E">仍然加入</span><span class="btn2" style="background:#1E3A6E;color:#fff">按建议调整</span></div></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:18px">
+<div class="s"><div class="t"><b>xj-bottom-sheet</b> 三档 + <b>xj-node-card</b> + <b>xj-toast</b></div>
+<div class="ph"><svg width="100%" height="100%" viewBox="0 0 400 520" style="position:absolute;inset:0"><g stroke="#fff" stroke-width="8"><path d="M0 120H400M150 0V520M0 60L400 80M300 0V520"/></g><path d="M300 200 C250 150,200 160,180 120 S140 80,110 100" stroke="#fff" stroke-width="9" fill="none"/><path d="M300 200 C250 150,200 160,180 120 S140 80,110 100" stroke="#FF7A45" stroke-width="5" fill="none"/><circle cx="300" cy="200" r="12" fill="#FF7A45" stroke="#fff" stroke-width="3"/><circle cx="110" cy="100" r="12" fill="#FF7A45" stroke="#fff" stroke-width="3"/>
+<g font-size="10" fill="#9A3412" font-family="monospace"><line x1="392" y1="0" x2="392" y2="516" stroke="#C2410C" stroke-dasharray="3 3"/><text x="318" y="52">full: 导航下</text><text x="300" y="232">half: 窗高52%</text></g></svg>
+<div style="position:absolute;left:10px;top:12px" class="qb"><em style="background:#FFF5DC;color:#7A5200">草稿</em>评审 <b style="color:#7A5200">78</b> ›</div>
+<div style="position:absolute;left:0;right:0;bottom:0;top:240px;background:#F7F5F0;border-radius:18px 18px 0 0;padding:8px 12px;box-shadow:0 -6px 20px #0001">
+<div style="width:36px;height:4px;border-radius:2px;background:#E8E4DC;margin:0 auto 8px"></div>
+<div class="r"><span class="chip on" style="height:28px;font-size:12px">Day 1 <span style="background:#E3F4EC;color:#1F7A52;font-size:10px;padding:0 4px;border-radius:4px;margin-left:4px">今天</span></span><span class="chip" style="height:28px;font-size:12px">Day 2</span><span class="an">拖动区</span></div>
+<div style="background:#fff;border:1px solid #E8E4DC;border-radius:12px;padding:12px">
+<div style="display:flex;gap:10px"><span style="width:26px;height:26px;border-radius:13px;background:#1E3A6E;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><div><span class="nm">天坛公园</span><span class="pill lk">已锁定</span><div class="mt">09:00-11:30 · 2.5h · ¥34</div></div></div>
+<div style="background:#F7F5F0;border-radius:8px;padding:7px 10px;font-size:12px;color:#5F6878;margin-top:8px"><b style="color:#7A5200">避坑</b> 东门进，先祈年殿</div>
+<div class="r" style="margin-top:8px;font-size:12px;color:#5F6878"><span class="pill scr" style="height:28px;line-height:26px;margin:0">锁定</span><span class="pill scr" style="height:28px;line-height:26px;margin:0">换一个</span><span class="pill scr" style="height:28px;line-height:26px;margin:0">删除</span><span class="pill" style="height:28px;line-height:28px;background:#E6ECF6;color:#1E3A6E;font-weight:700;margin-left:auto">展开玩法 ›</span></div></div>
+<div style="position:absolute;left:12px;right:12px;bottom:12px;background:#1B2333;color:#fff;border-radius:12px;padding:8px 8px 8px 14px;font-size:12px;display:flex;align-items:center">已删除 前门大街<span style="margin-left:auto;background:#fff2;border-radius:14px;padding:4px 10px;font-weight:700">↶ 撤销</span></div>
+</div></div>
+<div class="r" style="margin-top:8px"><span class="an">toast 停留 5s · 在 chat-bar 上方 180rpx</span><span class="an">展开玩法 → full</span><span class="an">peek 露出 300rpx</span></div></div>
+<div class="s"><div class="t"><b>xj-import-result</b>（小红书）</div>
+<div style="border:1px solid #E8E4DC;border-radius:12px;padding:12px;font-size:13px"><span style="background:#FDE8EA;color:#B4233A;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px">小红书</span> <b>北京三日游｜不踩雷的中轴线</b>
+<div style="font-size:11px;color:#5F6878;margin:6px 0">识别到 3 个地点 · 已匹配 2 个，1 个需确认</div>
+<div style="border-top:1px solid #E8E4DC;padding:6px 0">☑ 天坛公园</div><div style="border-top:1px solid #E8E4DC;padding:6px 0">☑ 四季民福（前门店）</div><div style="border-top:1px solid #E8E4DC;padding:6px 0;color:#5F6878;display:flex">☐ “胡同里的咖啡”<b style="margin-left:auto;background:#FFF5DC;color:#7A5200;font-size:11px;padding:1px 8px;border-radius:9px">去确认</b></div></div></div>
+<div class="s"><div class="t"><b>xj-trip-item</b> · <b>xj-empty-state</b> · <b>xj-skeleton</b></div>
+<div class="r" style="border:1px solid #E8E4DC;border-radius:12px;padding:10px"><span style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#2F5597,#1E3A6E)"></span><b>北京</b><span class="pill" style="background:#FFF5DC;color:#7A5200;font-weight:700">规划中</span><span class="pill" style="background:#E6ECF6;color:#1E3A6E;font-weight:700">待出发</span><span class="pill lk" style="font-weight:700">旅行中</span><span class="pill" style="background:#EFEDE8;color:#666E7D;font-weight:700">已结束</span></div>
+<div style="height:92px;border-radius:14px;background:linear-gradient(180deg,#1E3A6E,#3D5F9C 55%,#FF9A6B);color:#fff;padding:12px;position:relative;overflow:hidden"><b style="font-size:20px">想去哪儿？</b><div style="font-size:11px;opacity:.9">一句话告诉我，Agent 帮你排好每一天</div><span style="position:absolute;right:30px;bottom:-14px;width:54px;height:54px;border-radius:27px;background:#FFD2A8"></span></div>
+<div class="r" style="margin-top:8px"><span class="chip" style="font-size:12px">✦ 北京 3 天，带爸妈</span><span class="chip" style="font-size:12px">✦ 粘贴小红书导入</span></div>
+<div style="display:flex;gap:8px;align-items:center"><span style="width:40px;height:28px;border-radius:4px;background:#ECE8E0"></span><span style="flex:1"><span style="display:block;height:12px;width:55%;background:#ECE8E0;border-radius:4px"></span><span style="display:block;height:10px;width:85%;background:#ECE8E0;border-radius:4px;margin-top:6px"></span></span></div></div>
+</div></div></body></html>

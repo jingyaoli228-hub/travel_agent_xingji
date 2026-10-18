@@ -1,0 +1,7 @@
+.xj-nav{position:fixed;top:0;left:0;right:0;z-index:var(--xj-z-nav)}
+.xj-nav__bar{display:flex;align-items:center;padding-left:24rpx;box-sizing:border-box;gap:16rpx}
+.xj-nav__left{display:flex;align-items:center;gap:8rpx;height:60rpx;padding:0 20rpx 0 16rpx;border-radius:var(--xj-radius-pill);background:var(--xj-card);box-shadow:0 4rpx 16rpx rgba(20,30,50,.08);font-size:var(--xj-font-caption);font-weight:700;color:var(--xj-primary);--xj-icon-size:30rpx;flex-shrink:0}
+.xj-nav__left--hover{opacity:.8}
+.xj-nav__title{flex:1;min-width:0;display:flex;flex-direction:column}
+.xj-nav__t{font-size:var(--xj-font-h3);font-weight:700;color:var(--xj-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xj-nav__s{font-size:var(--xj-font-mini);color:var(--xj-text2)}

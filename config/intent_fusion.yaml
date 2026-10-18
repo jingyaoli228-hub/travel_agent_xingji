@@ -1,0 +1,33 @@
+# Stage-3 intent fusion configuration. Read by travel_agent/intent/config.py
+# (cached with mtime-based invalidation) -- change values here, no code
+# redeploy needed. See travel_agent/intent/fusion_resolver.py for how these
+# are consumed.
+
+intent_fusion:
+  llm_weight: 0.60
+  embedding_weight: 0.25
+  pattern_weight: 0.15
+
+  agreement_bonus: 0.08
+  workflow_invalid_penalty: 0.50
+  ambiguity_penalty: 0.20
+
+  high_confidence_threshold: 0.82
+  medium_confidence_threshold: 0.65
+
+# Fast Path (RequestComplexityClassifier) confidence gate -- below this, or on
+# any detected ambiguity, escalate straight to the Deep Path regardless of
+# the score above.
+fast_path:
+  confidence_threshold: 0.75
+
+# Embedding router (local cosine-similarity retriever, see embedding_router.py)
+embedding:
+  top_k: 5
+  negative_penalty: 0.3
+
+# Per-branch timeouts for the Deep Path's parallel fan-out (ThreadPoolExecutor).
+# Pattern parsing is in-process/instant and isn't subject to a timeout.
+timeouts:
+  embedding_seconds: 3.0
+  llm_seconds: 45.0

@@ -1,0 +1,6 @@
+<view class="xj-chip xj-chip--{{status}} xj-chip--{{size}}" hover-class="xj-chip--hover" bindtap="onTap">
+  <view wx:if="{{status==='selected'}}" class="xj-icon xj-icon--check-white xj-chip__pre"></view>
+  <view wx:elif="{{status==='must'}}" class="xj-icon xj-icon--star-green xj-chip__pre"></view>
+  <text class="xj-chip__label">{{label}}</text><slot></slot>
+  <view wx:if="{{closable}}" class="xj-chip__close" catchtap="onClose"><view class="xj-icon xj-icon--close-{{status==='selected'?'white':'grey'}}"></view></view>
+</view>

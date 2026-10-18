@@ -1,0 +1,30 @@
+[
+  {
+    "case_id": "modification_001_region_replacement_ubud_to_nusa_penida",
+    "category": "modification",
+    "user_request": "把第3天的Ubud换成努沙佩尼达，我想浮潜和滑翔伞",
+    "prior_state": {"current_phase": "post_plan_feedback", "current_plan_summary": {"day_count": 5}, "current_regions": ["Ubud", "Canggu"]},
+    "expected_goal": "识别为区域替换(REGION_REPLACEMENT)，source_region为Ubud，target_region为努沙佩尼达，研究该区域的浮潜/滑翔伞等特色活动，仅替换第3天内容，其他天保持不变，并在回应中明确说明第3天已更新为努沙佩尼达相关活动"
+  },
+  {
+    "case_id": "modification_002_multi_turn_day3_only",
+    "category": "modification",
+    "user_request": "第三天不要动，其他天可以帮我重新排一下，尽量减少通勤时间。",
+    "prior_state": {"current_phase": "post_plan_feedback", "current_plan_summary": {"day_count": 5}},
+    "expected_goal": "理解为除第3天外的所有天重排以减少通勤时间，第3天必须保持原样不变"
+  },
+  {
+    "case_id": "modification_003_remove_and_replace_activity",
+    "category": "modification",
+    "user_request": "去掉第二天的博物馆，换成海边活动",
+    "prior_state": {"current_phase": "post_plan_feedback", "current_plan_summary": {"day_count": 5}},
+    "expected_goal": "识别第2天移除culture类，增加beach类体验，仅重排第2天，其他天不变"
+  },
+  {
+    "case_id": "modification_004_confirm_after_feedback",
+    "category": "modification",
+    "user_request": "确认，就这样吧",
+    "prior_state": {"current_phase": "post_plan_feedback", "current_plan_summary": {"day_count": 5}},
+    "expected_goal": "识别为确认行程(CONFIRM_ITINERARY)，结束反馈循环，不再触发任何研究或重规划"
+  }
+]

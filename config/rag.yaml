@@ -1,0 +1,35 @@
+# Travel RAG config (Round-6 Phase 2/3). Read by travel_agent/rag/config.py
+# (cached with mtime-based invalidation, same pattern as
+# config/evaluation_criteria.yaml / config/intent_fusion.yaml). Change values
+# here, no code redeploy needed. Fusion weights/thresholds below are initial
+# defaults per the design doc -- tune against `scripts/eval_rag_retrieval.py`
+# once there's a labeled retrieval eval set, not assumed permanent.
+
+chroma_path: "./data/chroma"
+
+embedding_model: "onnx-minilm"  # onnx-minilm | hash-fallback -- see rag/chroma_client.py
+
+chunking:
+  target_tokens: 400
+  max_tokens: 650
+  overlap_tokens: 80
+
+collections:
+  travel_guides: "travel_guides"
+  episodic_memory: "episodic_memory"
+  user_profile: "user_profile"
+
+retrieval:
+  dense_top_k: 20
+  rerank_top_k: 8
+  max_context_chunks: 6
+  distance_threshold: 0.45
+  episodic_top_k: 5
+  profile_top_k: 6
+
+fusion_weights:
+  dense: 0.45
+  keyword: 0.20
+  metadata: 0.15
+  source_quality: 0.10
+  freshness: 0.10

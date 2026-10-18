@@ -1,0 +1,10 @@
+<view class="xj-cp">
+  <view class="xj-cp__hd"><view class="xj-icon xj-icon--warn-amber"></view><text class="xj-cp__title">{{title}}</text></view>
+  <view class="xj-cp__day"><text>{{dayLabel}}</text><text class="xj-cp__from">{{before}}</text><text class="xj-cp__arrow">→</text><text class="xj-cp__to {{over?'is-over':''}}">{{after}}</text></view>
+  <view wx:for="{{impacts}}" wx:key="index" class="xj-cp__item xj-cp__item--{{item.level||'warn'}}"><view class="xj-cp__dot"></view><text>{{item.text}}</text></view>
+  <slot></slot>
+  <view class="xj-cp__acts">
+    <view class="xj-cp__ghost" bindtap="onForce">{{forceText}}</view>
+    <view class="xj-cp__btn" bindtap="onApply">{{applyText}}</view>
+  </view>
+</view>
