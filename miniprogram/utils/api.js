@@ -90,7 +90,15 @@ function applyPatch(tripId, payload) {
   })
 }
 
+function listTrips(userId) { return request(`/api/trips?user_id=${encodeURIComponent(userId)}`, { timeout: 30000 }) }
+function deleteTrip(tripId) { return request(`/api/trips/${encodeURIComponent(tripId)}`, { method: 'DELETE', timeout: 30000 }) }
+function copyTrip(tripId, userId) { return request(`/api/trips/${encodeURIComponent(tripId)}/copy`, { method: 'POST', data: { user_id: userId }, timeout: 30000 }) }
+function getTripInsight(tripId) { return request(`/api/trips/${encodeURIComponent(tripId)}/insight`, { timeout: 30000 }) }
+function parseXhs(userId, content) { return request('/api/imports/xhs/parse', { method: 'POST', data: { user_id: userId, content }, timeout: 120000 }) }
+function storeXhs(payload) { return request('/api/imports/xhs/store', { method: 'POST', data: payload, timeout: 60000 }) }
+
 module.exports = {
   postChat, getResearchStatus, getSession, getPlanningContext, getTripOverview, rollbackPatch,
-  autocompletePlaces, previewInsert, applyPatch
+  autocompletePlaces, previewInsert, applyPatch, listTrips, deleteTrip, copyTrip, getTripInsight,
+  parseXhs, storeXhs
 }

@@ -141,6 +141,31 @@ class WorkspaceService:
                 self._save(state, state.plan_version)
             return copy.deepcopy(state)
 
+    def list_trip_ids(self) -> list[str]:
+        with self._lock:
+            return list(self._states)
+
+    def delete(self, trip_id: str) -> None:
+        with self._lock:
+            self._states.pop(trip_id, None)
+            if database.enabled():
+                database.delete_trip_records(trip_id)
+
+    def clone(self, trip_id: str, new_trip_id: str, start_date: Optional[str] = None) -> WorkspaceState:
+        with self._lock:
+            source = self.get(trip_id)
+            days = [day.model_copy(deep=True) for day in source.days]
+            if days and start_date:
+                from datetime import date, timedelta
+
+                target = date.fromisoformat(start_date)
+                dated = [date.fromisoformat(day.date) for day in days if day.date]
+                original = min(dated) if dated else target
+                for day in days:
+                    offset = (date.fromisoformat(day.date) - original).days if day.date else day.day_number - 1
+                    day.date = (target + timedelta(days=offset)).isoformat()
+            return self.seed(new_trip_id, [day.model_dump() for day in days], version=1)
+
     def autocomplete(self, query: str, city: str, latitude: Optional[float] = None, longitude: Optional[float] = None, radius_meters: int = 20000) -> list[dict[str, Any]]:
         if not query.strip() or not city.strip():
             return []

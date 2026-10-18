@@ -1,5 +1,5 @@
 // 我的行程列表项。状态按日期自动判断，不让用户手动改（UX）
-const TEXT = { draft: '规划中', confirmed: '待出发', ongoing: '旅行中', traveled: '已结束' };
+const TEXT = { draft: '草稿', confirmed: '已定', traveled: '已出行' };
 Component({
   properties: {
     city: { type: String, value: '' },

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import date
+import copy
+import re
 from typing import Any, Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -19,6 +23,23 @@ router = APIRouter(prefix="/api")
 class RollbackRequest(BaseModel):
     plan_version: int
     request_id: str
+
+
+class CopyTripRequest(BaseModel):
+    user_id: str
+    start_date: Optional[str] = None
+
+
+class XhsParseRequest(BaseModel):
+    user_id: str
+    content: str
+
+
+class XhsStoreRequest(BaseModel):
+    user_id: str
+    import_id: str
+    content: str
+    places: list[dict[str, Any]]
 
 
 def _ensure_workspace(trip_id: str):
@@ -40,6 +61,187 @@ def _translate_error(exc: Exception) -> HTTPException:
     if isinstance(exc, WorkspaceNotFound):
         return HTTPException(404, detail="TRIP_NOT_FOUND")
     return HTTPException(422, detail=str(exc))
+
+
+def _status_for(days: list[Any], score: float) -> tuple[str, bool]:
+    dates = [date.fromisoformat(day.date) for day in days if day.date]
+    today = date.today()
+    if dates and max(dates) < today:
+        return "traveled", False
+    ongoing = bool(dates and min(dates) <= today <= max(dates))
+    return ("confirmed" if score >= 85 else "draft"), ongoing
+
+
+def _snapshot_values(trip_id: str) -> dict[str, Any]:
+    snapshot = get_compiled_graph().get_state({"configurable": {"thread_id": trip_id}})
+    return snapshot.values if snapshot else {}
+
+
+@router.get("/trips")
+def list_trips(user_id: str) -> dict[str, Any]:
+    from travel_agent.persistence import database
+
+    if database.enabled():
+        rows = database.list_sessions(user_id)
+        ids = [row["session_id"] for row in rows]
+        updated = {row["session_id"]: row["updated_at"].isoformat() for row in rows}
+    else:
+        ids = workspace_service.list_trip_ids()
+        updated = {}
+    trips = []
+    for trip_id in ids:
+        try:
+            state = _ensure_workspace(trip_id)
+        except HTTPException:
+            continue
+        values = _snapshot_values(trip_id)
+        review = values.get("review_report") or {}
+        score = float(review.get("score") or 0)
+        status, ongoing = _status_for(state.days, score)
+        destination = (values.get("travel_requirement") or {}).get("destination") or next((day.city for day in state.days if day.city), "行程")
+        dates = [day.date for day in state.days if day.date]
+        trips.append({
+            "trip_id": trip_id, "city": destination, "days": len(state.days), "status": status,
+            "ongoing": ongoing, "dates": f"{dates[0][5:]} - {dates[-1][5:]}" if dates else "日期待定",
+            "score": round(score), "issues": len(review.get("issues") or []),
+            "summary": "只读" if status == "traveled" else (f"质量 {round(score)}" if score else "规划中"),
+            "updated_at": updated.get(trip_id, ""),
+        })
+    trips.sort(key=lambda row: row["updated_at"], reverse=True)
+    trips.sort(key=lambda row: (0 if row["ongoing"] else 1, {"confirmed": 0, "draft": 1, "traveled": 2}[row["status"]]))
+    return {"trips": trips}
+
+
+@router.delete("/trips/{trip_id}")
+def delete_trip(trip_id: str) -> dict[str, str]:
+    workspace_service.delete(trip_id)
+    graph = get_compiled_graph()
+    try:
+        delete_thread = getattr(graph.checkpointer, "delete_thread", None)
+        if delete_thread:
+            delete_thread(trip_id)
+    except Exception:
+        pass
+    return {"status": "DELETED"}
+
+
+@router.post("/trips/{trip_id}/copy")
+def copy_trip(trip_id: str, request: CopyTripRequest) -> dict[str, Any]:
+    source_values = _snapshot_values(trip_id)
+    new_id = f"trip-{uuid4().hex[:16]}"
+    start = request.start_date or date.today().isoformat()
+    state = workspace_service.clone(trip_id, new_id, start)
+    from travel_agent.persistence import database
+    if database.enabled():
+        database.touch_session(new_id, request.user_id, "post_plan_feedback")
+    if source_values:
+        copied_values = copy.deepcopy(source_values)
+        copied_values.update({
+            "session_id": new_id, "user_id": request.user_id,
+            "conversation_history": [], "stage": "post_plan_feedback",
+            "current_node": "post_plan_feedback", "need_user_input": True,
+            "itinerary": {"days": [day.model_dump(mode="json") for day in state.days]},
+        })
+        final_plan = dict(copied_values.get("final_plan") or {})
+        final_plan["itinerary"] = copied_values["itinerary"]
+        copied_values["final_plan"] = final_plan
+        get_compiled_graph().update_state(
+            {"configurable": {"thread_id": new_id}}, copied_values, as_node="final_output",
+        )
+    return {"trip_id": new_id, "plan_version": state.plan_version, "days": len(state.days)}
+
+
+@router.get("/trips/{trip_id}/insight")
+def trip_insight(trip_id: str) -> dict[str, Any]:
+    state = _ensure_workspace(trip_id)
+    values = _snapshot_values(trip_id)
+    memory = values.get("memory_context") or {}
+    review = values.get("review_report") or {}
+    strict = values.get("strict_evaluation") or {}
+    intent = values.get("intent_result") or {}
+    changes = state.history[-5:]
+    real_routes = sum(1 for rows in state.route_segments_by_day.values() for row in rows if row.status == "REAL_ROUTE")
+    return {
+        "intent": {"path": intent.get("route") or intent.get("intent") or values.get("current_node"), "confidence": intent.get("confidence"), "source": "本次记录"},
+        "memory": {
+            "l0": bool(values.get("travel_requirement")), "l1": len(values.get("conversation_history") or []),
+            "l2": len(memory.get("episodic") or []), "l3": [row.get("statement") for row in memory.get("profile_statements") or []],
+            "source": "本次记录",
+        },
+        "tools": {"real_routes": real_routes, "candidate_count": len((values.get("selected_places") or {}).get("experiences") or []), "source": "本次记录"},
+        "quality": {"reviewer": review.get("score"), "strict": strict.get("overall_score"), "issues": review.get("issues") or strict.get("improvement_actions") or [], "source": "本次记录"},
+        "changes": [{"version": row.get("plan_version"), "summary": row.get("summary"), "items": row.get("changed_items") or []} for row in changes],
+        "developer": {"plan_version": state.plan_version, "stage": values.get("stage"), "node": values.get("current_node"), "source": "本次记录"},
+    }
+
+
+_PLACE_PATTERN = re.compile(r"([\u4e00-\u9fff]{2,12}(?:博物馆|公园|美术馆|艺术区|广场|长城|胡同|大街|寺|宫|山|海|街|巷|园|馆|城|塔|湖))")
+_KNOWN_POIS = (
+    "故宫博物院", "天坛公园", "颐和园", "八达岭长城", "慕田峪长城", "景山公园",
+    "北海公园", "中国国家博物馆", "恭王府", "什刹海", "南锣鼓巷", "雍和宫",
+    "孔庙和国子监博物馆", "圆明园", "北京环球度假区", "798艺术区", "前门大街", "鼓楼",
+)
+
+
+@router.post("/imports/xhs/parse")
+def parse_xhs(request: XhsParseRequest) -> dict[str, Any]:
+    content = request.content.strip()
+    if not content:
+        raise HTTPException(422, detail="请粘贴链接或笔记正文")
+    plain = re.sub(r"https?://\S+", " ", content)
+    if not plain.strip():
+        raise HTTPException(422, detail={"code": "LINK_CONTENT_UNAVAILABLE", "message": "链接打不开或需要登录，请把正文也粘贴进来"})
+    known = [name for name in _KNOWN_POIS if name in plain]
+    names = list(dict.fromkeys(known + _PLACE_PATTERN.findall(plain)))[:20]
+    if not names:
+        raise HTTPException(422, detail={"code": "NO_PLACE_FOUND", "message": "没认出具体地点，请补充城市或地点名称"})
+    city_match = re.search(r"(北京|上海|广州|深圳|成都|杭州|西安|重庆|南京|苏州|厦门|长沙|武汉|青岛)", plain)
+    city = city_match.group(1) if city_match else ""
+    places = []
+    for name in names:
+        matches = workspace_service.autocomplete(name, city)[:1]
+        match = matches[0] if matches else {}
+        places.append({
+            "name": name, "note": next((line.strip() for line in plain.splitlines() if name in line), "")[:120],
+            "matched": bool(match.get("place_id")), "checked": bool(match.get("place_id")),
+            "place_id": match.get("place_id"), "city": city, "source": "用户粘贴",
+        })
+    return {"import_id": f"xhs-{uuid4().hex[:16]}", "title": (plain.splitlines()[0] or "小红书笔记")[:40], "places": places}
+
+
+@router.post("/imports/xhs/store")
+def store_xhs(request: XhsStoreRequest) -> dict[str, Any]:
+    from travel_agent.persistence import database
+    payload = {"places": request.places, "source": "user_paste", "platform": "xiaohongshu"}
+    if database.enabled():
+        database.save_xhs_import(request.import_id, request.user_id, request.content, payload)
+    try:
+        from datetime import datetime, timezone
+        from travel_agent.rag.ingestion.embedding_writer import write_chunks
+        from travel_agent.rag.schemas import TravelGuideChunk
+
+        now = datetime.now(timezone.utc).isoformat()
+        chunks = [TravelGuideChunk(
+            id=f"{request.import_id}::{index}",
+            content=row.get("note") or request.content,
+            summary=row.get("note") or f"用户导入的 {row.get('name', '')} 笔记",
+            destination_city=row.get("city") or None,
+            canonical_destination=row.get("city") or None,
+            canonical_place_name=row.get("name") or None,
+            guide_type="玩法笔记",
+            activity_topics=[row.get("name")] if row.get("name") else [],
+            source_type="小红书·用户粘贴",
+            source_title=f"用户导入：{row.get('name') or request.import_id}",
+            collected_time=now,
+            freshness_level="用户导入",
+            quality_score=0.6,
+            parent_document_id=request.import_id,
+            chunk_index=index,
+        ) for index, row in enumerate(request.places)]
+        write_chunks(chunks)
+    except Exception:
+        pass
+    return {"status": "STORED", "import_id": request.import_id, "places": len(request.places)}
 
 
 @router.get("/trips/{trip_id}/days")
@@ -94,11 +296,13 @@ def get_trip_overview(trip_id: str) -> dict[str, Any]:
 
     dates = [day.date for day in state.days if day.date]
     destination = requirement.get("destination") or next((day.city for day in state.days if day.city), "行程")
+    trip_status, ongoing = _status_for(state.days, float(score))
     return {
         "trip_id": trip_id,
         "title": f"{destination} {len(state.days)} 日游",
         "subtitle": f"{dates[0][5:]} - {dates[-1][5:]}" if dates else "",
-        "status": values.get("stage") or "done",
+        "status": trip_status,
+        "ongoing": ongoing,
         "plan_version": state.plan_version,
         "quality": {
             "score": round(float(score)), "passed": bool(review.get("passed") or float(score) >= 85),

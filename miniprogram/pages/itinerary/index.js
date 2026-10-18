@@ -42,7 +42,7 @@ function isPendingMeal(item) {
 
 Page({
   data: {
-    tripId: '', navH: 64, loading: true, hasTrip: false, sending: false,
+    tripId: '', navH: 64, loading: true, hasTrip: false, sending: false, offlineNoCache: false,
     title: '行迹', subtitle: '', planVersion: 0, level: 'peek',
     offline: false, readOnly: false, cachedAt: '',
     score: 0, qualityStatus: 'draft', qualityIssues: [], alerts: [],
@@ -76,7 +76,7 @@ Page({
   },
 
   onNavReady(event) { this.setData({ navH: event.detail.totalHeight }) },
-  onMyTrips() { wx.showToast({ title: '“我的行程”将在第 5 步接入', icon: 'none' }) },
+  onMyTrips() { wx.navigateTo({ url: '/pages/trips/index' }) },
 
   onShow() {
     if (this.data.tripId && this.data.hasTrip) this.loadOverview({ silent: true })
@@ -91,7 +91,7 @@ Page({
     if (this.data.offline) {
       const cached = cache.loadTrip(tripId)
       if (cached) this.applyOverview(cached, true)
-      else this.setData({ loading: false, hasTrip: false, readOnly: true })
+      else this.setData({ loading: false, hasTrip: false, readOnly: true, offlineNoCache: true })
       return
     }
     if (!options.silent) this.setData({ loading: true })
@@ -101,7 +101,7 @@ Page({
       this.applyOverview(overview, false)
     } catch (error) {
       if (error.statusCode === 404) {
-        this.setData({ loading: false, hasTrip: false })
+        this.setData({ loading: false, hasTrip: false, offlineNoCache: this.data.offline })
         return
       }
       const cached = cache.loadTrip(tripId)
@@ -137,6 +137,7 @@ Page({
       title: overview.title || '行迹',
       subtitle: overview.subtitle || '',
       planVersion: overview.plan_version || 0,
+      tripStatus: overview.status || 'draft',
       score: Number(quality.score || 0),
       qualityStatus: quality.passed ? 'pass' : (Number(quality.score || 0) > 0 ? 'draft' : 'fail'),
       qualityIssues: quality.issues || [],
@@ -146,7 +147,8 @@ Page({
       messages: overview.conversation_history || [],
       changes: overview.changes || [],
       cachedAt: fromCache && overview.cached_at ? this.formatCacheTime(overview.cached_at) : '',
-      readOnly: this.data.offline || fromCache
+      readOnly: this.data.offline || fromCache || overview.status === 'traveled',
+      offlineNoCache: false
     }, () => this.renderDay(currentDay))
   },
 
@@ -273,17 +275,34 @@ Page({
   },
 
   openInsight() {
-    this.setData({ qualityOpen: true, conversationOpen: false, focusItem: null, level: 'full' })
+    wx.navigateTo({ url: `/pages/agent-insight/index?tripId=${encodeURIComponent(this.data.tripId)}` })
+  },
+
+  async copyAsNewTrip() {
+    try {
+      const result = await api.copyTrip(this.data.tripId, wx.getStorageSync('travel-agent:user-id') || 'owner')
+      wx.setStorageSync('travel-agent:active-trip-id', result.trip_id)
+      wx.setStorageSync('travel-agent:session-id', result.trip_id)
+      this.setData({ tripId: result.trip_id, readOnly: false })
+      await this.loadOverview()
+      wx.showToast({ title: '已复制为新行程', icon: 'success' })
+    } catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }
   },
 
   onChatFocus() {
-    if (this.data.readOnly) return
     this.setData({ conversationOpen: true, qualityOpen: false, focusItem: null, level: 'full' })
   },
+
+  openConversation() { this.onChatFocus() },
 
   async onSend(event) {
     const value = event.detail.value
     if (!value || this.data.readOnly || this.data.sending) return
+    if (/xhslink|xiaohongshu|小红书/.test(value) || value.length > 180) {
+      wx.setStorageSync('travel-agent:xhs-draft', value)
+      wx.navigateTo({ url: '/pages/xhs-import/index' })
+      return
+    }
     const messages = this.data.messages.concat({ role: 'user', content: value })
     this.setData({ messages, conversationOpen: true, level: 'full', sending: true })
     try {
@@ -328,7 +347,9 @@ Page({
     if (offline) {
       const cached = cache.loadTrip(this.data.tripId)
       if (cached) this.applyOverview(cached, true)
+      else this.setData({ loading: false, hasTrip: false, offlineNoCache: true })
     } else {
+      this.setData({ offlineNoCache: false })
       this.loadOverview()
     }
   },

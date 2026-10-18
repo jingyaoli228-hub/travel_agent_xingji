@@ -178,3 +178,6 @@
 .quality-panel__empty {
   color: var(--xj-text3);
 }
+
+.offline-empty{display:flex;min-height:60vh;flex-direction:column;align-items:center;justify-content:center;gap:var(--xj-space-3);text-align:center}.offline-empty__icon{display:flex;width:112rpx;height:112rpx;align-items:center;justify-content:center;border-radius:var(--xj-radius-md);background:var(--xj-accent);color:var(--xj-card);font-size:var(--xj-font-h3);font-weight:var(--xj-weight-bold)}.copy-trip{align-self:flex-end;padding:var(--xj-space-1) var(--xj-space-3);border-radius:var(--xj-radius-pill);background:var(--xj-primary);color:var(--xj-card);font-size:var(--xj-font-sm);font-weight:var(--xj-weight-bold)}
+.readonly-chat{flex:1;padding:var(--xj-space-2) var(--xj-space-3);border:2rpx solid var(--xj-line);border-radius:var(--xj-radius-pill);background:var(--xj-card);color:var(--xj-text2);font-size:var(--xj-font-sm)}

@@ -1,0 +1,7 @@
+<view class="trips-page" style="padding-top:{{navH}}px"><xj-nav-bar title="我的行程" left-text="返回" bind:left="goBack" bind:ready="onNavReady"></xj-nav-bar>
+  <view class="top-actions"><xj-button type="primary" bind:tap="newTrip">＋ 新行程</xj-button><xj-button type="secondary" bind:tap="importXhs">导入小红书笔记</xj-button></view>
+  <view class="sort-hint">已定 · 按出发日期近 → 远；出行中置顶</view>
+  <view wx:if="{{loading}}"><xj-skeleton type="list" rows="{{4}}"></xj-skeleton></view>
+  <view wx:elif="{{!trips.length}}" class="empty-list">还没有行程</view>
+  <view wx:else class="trip-list"><xj-trip-item wx:for="{{trips}}" wx:key="trip_id" trip-id="{{item.trip_id}}" city="{{item.city + ' ' + item.days + ' 日游'}}" dates="{{item.dates}}" days="{{item.days}}" status="{{item.status}}" summary="{{item.summary}}" bind:tap="openTrip" bind:longpress="confirmDelete"></xj-trip-item><view class="delete-hint">长按一条行程可删除</view></view>
+</view>

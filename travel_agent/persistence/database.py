@@ -83,6 +83,15 @@ def init_schema() -> None:
             );
             CREATE INDEX IF NOT EXISTS ix_trip_episodes_user_created
                 ON trip_episodes(user_id, created_at DESC);
+            CREATE TABLE IF NOT EXISTS xhs_imports (
+                import_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                source_text TEXT NOT NULL,
+                parsed JSONB NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+            CREATE INDEX IF NOT EXISTS ix_xhs_imports_user_created
+                ON xhs_imports(user_id, created_at DESC);
             """
         )
 
@@ -109,6 +118,23 @@ def touch_session(session_id: str, user_id: Optional[str] = None, stage: Optiona
                  stage=COALESCE(EXCLUDED.stage,sessions.stage), updated_at=now()""",
             (session_id, effective_user, stage),
         )
+
+
+def list_sessions(user_id: str) -> list[dict[str, Any]]:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT session_id,stage,created_at,updated_at FROM sessions
+               WHERE user_id=%s ORDER BY updated_at DESC""",
+            (user_id,),
+        )
+        return [dict(zip(("session_id", "stage", "created_at", "updated_at"), row)) for row in cur.fetchall()]
+
+
+def delete_trip_records(session_id: str) -> None:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute("DELETE FROM task_runs WHERE session_id=%s", (session_id,))
+        cur.execute("DELETE FROM workspace_states WHERE trip_id=%s", (session_id,))
+        cur.execute("DELETE FROM sessions WHERE session_id=%s", (session_id,))
 
 
 def create_workspace(trip_id: str, version: int, state: dict[str, Any]) -> dict[str, Any]:
@@ -281,6 +307,17 @@ def episodes_for_user(user_id: str) -> list[dict[str, Any]]:
     with connection() as conn, conn.cursor() as cur:
         cur.execute("SELECT episode FROM trip_episodes WHERE user_id=%s ORDER BY created_at", (user_id,))
         return [row[0] for row in cur.fetchall()]
+
+
+def save_xhs_import(import_id: str, user_id: str, source_text: str, parsed: dict[str, Any]) -> None:
+    from psycopg.types.json import Jsonb
+
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO xhs_imports(import_id,user_id,source_text,parsed)
+               VALUES (%s,%s,%s,%s) ON CONFLICT(import_id) DO NOTHING""",
+            (import_id, user_id, source_text, Jsonb(parsed)),
+        )
 
 
 def service_health() -> dict[str, str]:

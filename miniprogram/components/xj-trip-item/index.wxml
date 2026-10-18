@@ -1,5 +1,5 @@
 <view class="xj-ti" hover-class="xj-ti--hover" bindtap="onTap" bindlongpress="onLong">
-  <view class="xj-ti__cover" style="background:{{cover||'linear-gradient(135deg,#2F5597,#1E3A6E)'}}"><text>{{days}}天</text></view>
+  <view class="xj-ti__cover"><text>{{days}}天</text></view>
   <view class="xj-ti__b">
     <view class="xj-ti__row"><text class="xj-ti__city">{{city}}</text><text class="xj-ti__st xj-ti__st--{{status}}">{{statusText}}</text></view>
     <text class="xj-ti__meta">{{dates}}<text wx:if="{{summary}}"> · {{summary}}</text></text>

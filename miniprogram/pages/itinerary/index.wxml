@@ -19,7 +19,8 @@
   </view>
 
   <view wx:if="{{!loading && !hasTrip}}" class="empty-panel" style="padding-top:{{navH}}px">
-    <xj-empty-state prompts="{{emptyPrompts}}" bind:prompt="onEmptyPrompt">
+    <view wx:if="{{offlineNoCache}}" class="offline-empty"><view class="offline-empty__icon">OFF</view><view class="panel-title">网络不可用</view><view class="panel-sub">这台手机上还没有缓存过行程，联网后才能打开</view><xj-button type="primary" bind:tap="retryOnline">重试</xj-button></view>
+    <xj-empty-state wx:else prompts="{{emptyPrompts}}" bind:prompt="onEmptyPrompt">
       <xj-button type="primary" block bind:tap="startPlanning">开始规划</xj-button>
     </xj-empty-state>
   </view>
@@ -30,8 +31,9 @@
       <xj-day-tabs days="{{days}}" current="{{currentDay}}" bind:change="onDay"></xj-day-tabs>
       <view class="sheet-header__summary">{{daySummary}}</view>
       <xj-offline-bar wx:if="{{offline || readOnly}}"
-        text="{{offline ? '离线 · 显示 ' + cachedAt + ' 的版本' : '云端暂不可用 · 显示本地版本'}}"
-        sub="只读模式，联网后可修改" bind:retry="retryOnline"></xj-offline-bar>
+        text="{{tripStatus==='traveled' ? '已出行 · 只读' : offline ? '离线 · 显示 ' + cachedAt + ' 的版本' : '云端暂不可用 · 显示本地版本'}}"
+        sub="{{tripStatus==='traveled' ? '原行程与对话记录保留不变' : '只读模式，联网后可修改'}}" bind:retry="retryOnline"></xj-offline-bar>
+      <view wx:if="{{tripStatus==='traveled'}}" class="copy-trip" bindtap="copyAsNewTrip">复制为新行程</view>
       <xj-alert-bar wx:else alerts="{{alerts}}" bind:action="onAlertAction"></xj-alert-bar>
     </view>
 
@@ -92,8 +94,9 @@
   </xj-bottom-sheet>
 
   <view wx:if="{{hasTrip}}" class="chat-wrap">
+    <view wx:if="{{readOnly}}" class="readonly-chat" bindtap="openConversation">查看对话记录 · 只读</view>
     <view class="add-place-btn {{readOnly?'is-off':''}}" bindtap="openAddPlace">＋ 加地点</view>
-    <xj-chat-bar class="chat-input" disabled="{{readOnly}}" sending="{{sending}}"
+    <xj-chat-bar wx:if="{{!readOnly}}" class="chat-input" disabled="{{readOnly}}" sending="{{sending}}"
       placeholder="{{readOnly?'离线只读，联网后可修改':'告诉行迹：下午想轻松点…'}}"
       bind:focus="onChatFocus" bind:send="onSend"></xj-chat-bar>
   </view>

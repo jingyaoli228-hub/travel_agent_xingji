@@ -184,3 +184,40 @@ def test_itinerary_overview_aggregates_routes_quality_and_history(monkeypatch):
     assert payload["quality"]["score"] == 78
     assert payload["route_segments_by_day"]["day_1"][0]["status"] == "REAL_ROUTE"
     assert [alert["type"] for alert in payload["alerts"]] == ["quality", "risk"]
+
+
+def test_trip_copy_is_independent_and_shifts_dates(service):
+    source = service.get("trip")
+    source.days[0].date = "2025-01-01"
+    source.days[1].date = "2025-01-03"
+    service._states["trip"] = source
+    copied = service.clone("trip", "trip-copy", "2026-11-01")
+    assert [day.date for day in copied.days] == ["2026-11-01", "2026-11-03"]
+    assert copied.plan_version == 1
+    assert service.get("trip").days[0].date == "2025-01-01"
+
+
+def test_xhs_parse_extracts_known_places_and_matches_amap(monkeypatch):
+    from travel_agent.main import app
+    from travel_agent.api import workspace as api_module
+    local = WorkspaceService()
+    local.place_search_provider = lambda **kwargs: [{
+        "place_id": f"amap-{kwargs['query']}", "name": kwargs["query"], "address": "北京市",
+    }]
+    monkeypatch.setattr(api_module, "workspace_service", local)
+    response = TestClient(app).post("/api/imports/xhs/parse", json={
+        "user_id": "owner", "content": "北京三天：故宫博物院一定早去，下午去景山公园看中轴线。",
+    })
+    assert response.status_code == 200
+    places = response.json()["places"]
+    assert {row["name"] for row in places} >= {"故宫博物院", "景山公园"}
+    assert all(row["matched"] for row in places[:2])
+
+
+def test_xhs_link_only_failure_is_truthful():
+    from travel_agent.main import app
+    response = TestClient(app).post("/api/imports/xhs/parse", json={
+        "user_id": "owner", "content": "https://xhslink.com/a/abc",
+    })
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "LINK_CONTENT_UNAVAILABLE"

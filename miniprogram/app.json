@@ -3,9 +3,11 @@
     "pages/itinerary/index",
     "pages/planning/index",
     "pages/add-place/index",
+    "pages/trips/index",
+    "pages/xhs-import/index",
+    "pages/agent-insight/index",
     "pages/kit-demo/index",
-    "pages/kit-map/index",
-    "pages/index/index"
+    "pages/kit-map/index"
   ],
   "window": {
     "navigationBarTitleText": "行迹",
