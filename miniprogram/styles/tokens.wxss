@@ -1,0 +1,49 @@
+/* 行迹 UI Kit · Direction A 藏青+暖橙 · design width 750rpx (1px = 2rpx) */
+page {
+  /* color */
+  --xj-primary: #1E3A6E;
+  --xj-primary2: #2F5597;
+  --xj-primary-light: #E6ECF6;
+  --xj-accent: #FF7A45;
+  --xj-accent-light: #FFEDE4;
+  --xj-cta: #C2410C;
+  --xj-cta-pressed: #9A3412;
+  --xj-cta-light: #FDEBE1;
+  --xj-bg: #F7F5F0;
+  --xj-card: #FFFFFF;
+  --xj-text: #1B2333;
+  --xj-text2: #5F6878;
+  --xj-text3: #666E7D;
+  --xj-text-disabled: #9AA1AD;
+  --xj-line: #E8E4DC;
+  --xj-success: #1F7A52;
+  --xj-success-icon: #2E9E6B;
+  --xj-success-light: #E3F4EC;
+  --xj-warn: #E8A317;
+  --xj-warn-light: #FFF5DC;
+  --xj-warn-text: #7A5200;
+  --xj-error: #B42318;
+  --xj-error-light: #FDECEC;
+  --xj-info: #2F5597;
+  --xj-info-light: #E6ECF6;
+  --xj-exclude: #F4F4F4;
+  /* radius */
+  --xj-radius-xs: 8rpx; --xj-radius-sm: 16rpx; --xj-radius-md: 24rpx; --xj-radius-lg: 32rpx; --xj-radius-xl: 44rpx; --xj-radius-pill: 999rpx;
+  /* spacing (8rpx grid) */
+  --xj-space-1: 8rpx; --xj-space-2: 16rpx; --xj-space-3: 24rpx; --xj-space-4: 32rpx; --xj-space-5: 40rpx; --xj-space-6: 48rpx;
+  /* font size */
+  --xj-font-h1: 48rpx; --xj-font-h2: 36rpx; --xj-font-h3: 32rpx; --xj-font-body: 30rpx; --xj-font-sm: 26rpx; --xj-font-caption: 24rpx; --xj-font-mini: 22rpx; --xj-font-num: 40rpx;
+  --xj-weight-regular: 400; --xj-weight-medium: 500; --xj-weight-bold: 700;
+  --xj-font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Helvetica Neue", sans-serif;
+  /* shadow */
+  --xj-shadow-card: 0 2rpx 4rpx rgba(20,30,50,0.04), 0 12rpx 40rpx rgba(20,30,50,0.05);
+  --xj-shadow-float: 0 12rpx 40rpx rgba(20,30,50,0.10);
+  --xj-shadow-tab: 0 16rpx 48rpx rgba(20,30,50,0.12);
+  --xj-shadow-cta: 0 8rpx 24rpx rgba(194,65,12,0.28);
+  --xj-shadow-primary: 0 12rpx 32rpx rgba(30,58,110,0.40);
+  /* z-index */
+  --xj-z-map-overlay: 10; --xj-z-sheet: 20; --xj-z-chat: 30; --xj-z-nav: 40; --xj-z-popup: 100; --xj-z-toast: 1000;
+  /* size */
+  --xj-btn-h: 88rpx; --xj-btn-h-sm: 64rpx; --xj-chip-h: 64rpx; --xj-nav-h: 88rpx; --xj-sheet-peek: 300rpx; --xj-chat-h: 100rpx;
+  background: var(--xj-bg); color: var(--xj-text); font-family: var(--xj-font-family);
+}

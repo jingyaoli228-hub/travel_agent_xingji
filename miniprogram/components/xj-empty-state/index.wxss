@@ -1,0 +1,12 @@
+.xj-empty{padding:8rpx 0}
+.xj-empty__hero{position:relative;height:360rpx;border-radius:var(--xj-radius-lg);overflow:hidden;background:linear-gradient(180deg,#1E3A6E 0%,#3D5F9C 55%,#FF9A6B 100%)}
+.xj-empty__sun{position:absolute;right:100rpx;top:150rpx;width:136rpx;height:136rpx;border-radius:50%;background:#FFD2A8}
+.xj-empty__m1{position:absolute;left:-60rpx;right:-60rpx;bottom:-140rpx;height:300rpx;background:#1E3A6E;opacity:.55;transform:rotate(-6deg);border-radius:50% 50% 0 0}
+.xj-empty__m2{position:absolute;left:-40rpx;right:-120rpx;bottom:-180rpx;height:300rpx;background:#1E3A6E;opacity:.9;transform:rotate(5deg);border-radius:50% 50% 0 0}
+.xj-empty__ht{position:absolute;left:36rpx;right:36rpx;top:36rpx;display:flex;flex-direction:column;color:#fff}
+.xj-empty__k{font-size:var(--xj-font-mini);letter-spacing:4rpx;opacity:.9}
+.xj-empty__title{font-size:var(--xj-font-h1);font-weight:700;margin-top:12rpx}
+.xj-empty__sub{font-size:var(--xj-font-caption);opacity:.92;margin-top:8rpx}
+.xj-empty__chips{display:flex;flex-wrap:wrap;gap:16rpx;margin-top:28rpx}
+.xj-empty__chip{display:flex;align-items:center;gap:8rpx;height:68rpx;padding:0 24rpx;border-radius:var(--xj-radius-pill);background:var(--xj-card);border:2rpx solid var(--xj-line);font-size:var(--xj-font-sm);color:var(--xj-text);--xj-icon-size:26rpx}
+.xj-empty__acts{margin-top:28rpx}

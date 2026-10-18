@@ -1,0 +1,8 @@
+<view class="xj-nav" style="padding-top:{{statusBarHeight}}px;background:{{bg}}">
+  <view class="xj-nav__bar" style="height:{{navHeight}}px;padding-right:{{capsuleSpace}}px">
+    <view wx:if="{{showLeft}}" class="xj-nav__left" hover-class="xj-nav__left--hover" bindtap="onLeft"><view class="xj-icon xj-icon--list-navy"></view><text>{{leftText}}</text></view>
+    <view class="xj-nav__title"><text class="xj-nav__t">{{title}}</text><text wx:if="{{subtitle}}" class="xj-nav__s">{{subtitle}}</text></view>
+    <slot></slot>
+  </view>
+</view>
+<view wx:if="{{placeholder}}" style="height:{{totalHeight}}px"></view>

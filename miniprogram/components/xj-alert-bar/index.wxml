@@ -1,0 +1,15 @@
+<view wx:if="{{top}}" class="xj-alert xj-alert--{{top.tone}}">
+  <view class="xj-alert__main">
+    <view class="xj-icon xj-icon--{{top.icon}}"></view>
+    <text class="xj-alert__text">{{top.text}}</text>
+    <text wx:if="{{top.actionText}}" class="xj-alert__act" data-id="{{top.id}}" bindtap="onAction">{{top.actionText}}</text>
+    <view wx:if="{{rest.length}}" class="xj-alert__more" bindtap="toggle"><text>{{expanded?'收起':(list.length+' 条提醒')}}</text><view class="xj-icon xj-icon--{{expanded?'up':'chevron'}}-dark"></view></view>
+    <view wx:elif="{{closable}}" class="xj-alert__close" data-id="{{top.id}}" bindtap="onClose"><view class="xj-icon xj-icon--close-grey"></view></view>
+  </view>
+  <view wx:if="{{expanded}}" class="xj-alert__list">
+    <view wx:for="{{rest}}" wx:key="id" class="xj-alert__row">
+      <view class="xj-icon xj-icon--{{item.icon}}"></view><text class="xj-alert__text">{{item.text}}</text>
+      <text wx:if="{{item.actionText}}" class="xj-alert__act" data-id="{{item.id}}" bindtap="onAction">{{item.actionText}}</text>
+    </view>
+  </view>
+</view>

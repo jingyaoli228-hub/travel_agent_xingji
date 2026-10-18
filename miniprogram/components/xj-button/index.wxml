@@ -1,0 +1,5 @@
+<button class="xj-btn xj-btn--{{type}} xj-btn--{{size}} {{block?'xj-btn--block':''}} {{disabled?'is-disabled':''}}" hover-class="{{disabled||loading?'none':'xj-btn--hover'}}" disabled="{{disabled}}" open-type="{{openType}}" bindtap="onTap">
+  <view wx:if="{{loading}}" class="xj-btn__spin"></view>
+  <view wx:elif="{{icon}}" class="xj-icon xj-icon--{{icon}} xj-btn__icon"></view>
+  <slot></slot>
+</button>

@@ -1,0 +1,8 @@
+<view class="xj-empty">
+  <view class="xj-empty__hero">
+    <view class="xj-empty__sun"></view><view class="xj-empty__m1"></view><view class="xj-empty__m2"></view>
+    <view class="xj-empty__ht"><text class="xj-empty__k">{{kicker}}</text><text class="xj-empty__title">{{title}}</text><text class="xj-empty__sub">{{sub}}</text></view>
+  </view>
+  <view class="xj-empty__chips"><view wx:for="{{prompts}}" wx:key="*this" class="xj-empty__chip" data-text="{{item}}" bindtap="onPrompt"><view class="xj-icon xj-icon--spark-navy"></view>{{item}}</view></view>
+  <view class="xj-empty__acts"><slot></slot></view>
+</view>

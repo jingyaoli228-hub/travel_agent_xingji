@@ -1,0 +1,7 @@
+<view class="xj-qb xj-qb--{{state}}" hover-class="xj-qb--hover" bindtap="onTap">
+  <view class="xj-icon xj-icon--{{state==='pass'?'shield-green':(state==='draft'?'clock-amber':'error-red')}}"></view>
+  <text wx:if="{{state==='draft'}}" class="xj-qb__tag">草稿</text>
+  <text wx:elif="{{state==='fail'}}" class="xj-qb__tag">未通过</text>
+  <text class="xj-qb__l">{{label}}</text><text class="xj-qb__n">{{score}}</text>
+  <view class="xj-icon xj-icon--chevron-grey xj-qb__c"></view>
+</view>

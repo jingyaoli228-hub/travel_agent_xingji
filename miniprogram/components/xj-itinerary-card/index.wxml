@@ -1,0 +1,16 @@
+<view class="xj-card {{active?'is-active':''}} {{dimmed?'is-dimmed':''}} {{waitlist?'is-wait':''}} {{conflict?'is-conflict':''}}" hover-class="xj-card--hover" bindtap="onTap" bindlongpress="onLongPress">
+  <view class="xj-card__time"><text class="xj-card__t">{{time}}</text><text wx:if="{{duration}}" class="xj-card__d">{{duration}}</text></view>
+  <view class="xj-card__body">
+    <view class="xj-card__head">
+      <text class="xj-card__name">{{name}}</text>
+      <view wx:if="{{locked}}" class="xj-card__lock"><view class="xj-icon xj-icon--lock-green"></view>已锁定</view>
+      <view wx:if="{{waitlist}}" class="xj-card__wait">候补</view>
+      <xj-score-chip wx:if="{{rating}}" score="{{rating}}"></xj-score-chip>
+      <slot name="tag"></slot>
+    </view>
+    <text wx:if="{{meta}}" class="xj-card__meta">{{meta}}</text>
+    <view wx:if="{{conflict}}" class="xj-card__cf"><view class="xj-icon xj-icon--warn-red"></view>{{conflict}}</view>
+    <slot></slot>
+  </view>
+  <slot name="right"></slot>
+</view>

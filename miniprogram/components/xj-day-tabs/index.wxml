@@ -1,0 +1,6 @@
+<scroll-view class="xj-days" scroll-x enhanced show-scrollbar="{{false}}"><view class="xj-days__in">
+  <view wx:for="{{days}}" wx:key="index" class="xj-days__item {{index===current?'is-on':''}}" data-index="{{index}}" bindtap="onTap">
+    <text class="xj-days__l">{{item.label}}</text><text wx:if="{{item.today}}" class="xj-days__today">今天</text><text wx:if="{{item.sub}}" class="xj-days__s"> · {{item.sub}}</text>
+    <view wx:if="{{item.warn}}" class="xj-days__dot"></view>
+  </view>
+</view></scroll-view>

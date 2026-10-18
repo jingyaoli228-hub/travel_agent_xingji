@@ -1,0 +1,23 @@
+<view class="xj-node {{expanded?'is-exp':''}}">
+  <view class="xj-node__head">
+    <view class="xj-node__idx">{{index}}</view>
+    <view class="xj-node__hd">
+      <view class="xj-node__row"><text class="xj-node__name">{{name}}</text><view wx:if="{{locked}}" class="xj-node__lock"><view class="xj-icon xj-icon--lock-green"></view>已锁定</view><xj-score-chip wx:if="{{rating}}" score="{{rating}}"></xj-score-chip></view>
+      <text class="xj-node__meta">{{time}}<text wx:if="{{duration}}"> · {{duration}}</text><text wx:if="{{meta}}"> · {{meta}}</text></text>
+    </view>
+    <view class="xj-node__close" bindtap="onClose"><view class="xj-icon xj-icon--close-grey"></view></view>
+  </view>
+  <view wx:if="{{tip}}" class="xj-node__tip"><text class="xj-node__tipk">避坑</text>{{tip}}</view>
+  <view wx:if="{{expanded}}" class="xj-node__play">
+    <view class="xj-node__st">玩法 · 主线 {{playDuration}}</view>
+    <view wx:for="{{steps}}" wx:key="index" class="xj-node__step"><view class="xj-node__dot {{item.branch?'is-br':''}}"></view><view class="xj-node__sb"><text class="xj-node__sn">{{item.title}}</text><text wx:if="{{item.desc}}" class="xj-node__sd">{{item.desc}}</text></view><text wx:if="{{item.time}}" class="xj-node__stime">{{item.time}}</text></view>
+    <slot name="play"></slot>
+  </view>
+  <slot></slot>
+  <view class="xj-node__acts">
+    <view class="xj-node__act" data-act="lock" bindtap="onAct"><view class="xj-icon xj-icon--lock-{{locked?'green':'dark'}}"></view>{{locked?'解锁':'锁定'}}</view>
+    <view class="xj-node__act" data-act="replace" bindtap="onAct"><view class="xj-icon xj-icon--refresh-dark"></view>换一个</view>
+    <view class="xj-node__act" data-act="delete" bindtap="onAct"><view class="xj-icon xj-icon--trash-dark"></view>删除</view>
+    <view class="xj-node__act xj-node__act--main" bindtap="onExpand"><text>{{expanded?'收起玩法':'展开玩法'}}</text><view class="xj-icon xj-icon--{{expanded?'up':'chevron'}}-navy"></view></view>
+  </view>
+</view>

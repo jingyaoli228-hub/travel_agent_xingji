@@ -1,0 +1,5 @@
+<view class="xj-sk {{animate?'is-anim':''}}">
+  <block wx:if="{{type==='card'}}"><view wx:for="{{rowsArr}}" wx:key="*this" class="xj-sk__card"><view class="xj-sk__b" style="width:80rpx;height:56rpx"></view><view class="xj-sk__col"><view class="xj-sk__b" style="width:55%;height:32rpx"></view><view class="xj-sk__b" style="width:85%;height:24rpx;margin-top:16rpx"></view></view></view></block>
+  <block wx:elif="{{type==='map'}}"><view class="xj-sk__b xj-sk__map" style="height:{{height}}rpx"></view></block>
+  <block wx:else><view wx:for="{{rowsArr}}" wx:key="*this" class="xj-sk__b" style="height:28rpx;margin-bottom:20rpx;width:{{index===rowsArr.length-1?'60%':'100%'}}"></view></block>
+</view>

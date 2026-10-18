@@ -1,0 +1,34 @@
+.itinerary-shell {
+  min-height: 100vh;
+  background: var(--xj-bg);
+}
+
+.itinerary-shell__content {
+  margin: var(--xj-space-4);
+  padding: var(--xj-space-5);
+  border: 2rpx solid var(--xj-line);
+  border-radius: var(--xj-radius-lg);
+  background: var(--xj-card);
+  box-shadow: var(--xj-shadow-card);
+}
+
+.itinerary-shell__kicker {
+  margin-bottom: var(--xj-space-2);
+  color: var(--xj-primary);
+  font-size: var(--xj-font-mini);
+  font-weight: var(--xj-weight-bold);
+}
+
+.itinerary-shell__title {
+  margin-bottom: var(--xj-space-2);
+  color: var(--xj-text);
+  font-size: var(--xj-font-h2);
+  font-weight: var(--xj-weight-bold);
+}
+
+.itinerary-shell__sub {
+  margin-bottom: var(--xj-space-4);
+  color: var(--xj-text3);
+  font-size: var(--xj-font-sm);
+  line-height: 1.6;
+}

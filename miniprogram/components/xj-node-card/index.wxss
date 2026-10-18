@@ -1,0 +1,20 @@
+.xj-node{background:var(--xj-card);border-radius:var(--xj-radius-md);padding:28rpx;box-shadow:var(--xj-shadow-card);border:2rpx solid var(--xj-line)}
+.xj-node__head{display:flex;gap:20rpx;align-items:flex-start}
+.xj-node__idx{width:52rpx;height:52rpx;border-radius:50%;background:var(--xj-primary);color:#fff;font-weight:700;font-size:var(--xj-font-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.xj-node__hd{flex:1;min-width:0}
+.xj-node__row{display:flex;align-items:center;gap:12rpx;flex-wrap:wrap}
+.xj-node__name{font-size:var(--xj-font-h3);font-weight:700}
+.xj-node__lock{display:inline-flex;align-items:center;gap:6rpx;height:40rpx;padding:0 14rpx;border-radius:var(--xj-radius-pill);background:var(--xj-success-light);color:var(--xj-success);font-size:var(--xj-font-mini);--xj-icon-size:22rpx}
+.xj-node__meta{display:block;margin-top:6rpx;font-size:var(--xj-font-caption);color:var(--xj-text2)}
+.xj-node__close{display:flex;padding:6rpx;--xj-icon-size:30rpx}
+.xj-node__tip{margin-top:20rpx;padding:16rpx 20rpx;border-radius:var(--xj-radius-sm);background:var(--xj-bg);font-size:var(--xj-font-caption);color:var(--xj-text2);line-height:1.6}
+.xj-node__tipk{font-weight:700;color:var(--xj-warn-text);margin-right:12rpx}
+.xj-node__play{margin-top:24rpx;padding-top:24rpx;border-top:2rpx solid var(--xj-line)}
+.xj-node__st{font-size:var(--xj-font-sm);font-weight:700;margin-bottom:16rpx}
+.xj-node__step{display:flex;gap:16rpx;padding:12rpx 0;align-items:flex-start}
+.xj-node__dot{width:16rpx;height:16rpx;border-radius:50%;background:var(--xj-primary);margin-top:12rpx;flex-shrink:0}.xj-node__dot.is-br{background:var(--xj-card);border:3rpx solid var(--xj-text3)}
+.xj-node__sb{flex:1}.xj-node__sn{display:block;font-size:var(--xj-font-sm);font-weight:500}.xj-node__sd{display:block;font-size:var(--xj-font-caption);color:var(--xj-text2);margin-top:4rpx}
+.xj-node__stime{font-size:var(--xj-font-caption);color:var(--xj-text3)}
+.xj-node__acts{display:flex;align-items:center;gap:8rpx;margin-top:24rpx}
+.xj-node__act{display:flex;align-items:center;gap:6rpx;height:60rpx;padding:0 18rpx;border-radius:var(--xj-radius-pill);background:var(--xj-bg);font-size:var(--xj-font-caption);color:var(--xj-text2);--xj-icon-size:26rpx}
+.xj-node__act--main{margin-left:auto;background:var(--xj-primary-light);color:var(--xj-primary);font-weight:700}

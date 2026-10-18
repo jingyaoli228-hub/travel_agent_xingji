@@ -1,0 +1,2 @@
+.xj-score{display:inline-flex;align-items:center;gap:6rpx;height:40rpx;padding:0 14rpx;border-radius:var(--xj-radius-pill);font-size:var(--xj-font-mini);background:var(--xj-bg);color:var(--xj-text2);border:2rpx solid var(--xj-line);box-sizing:border-box;--xj-icon-size:22rpx;white-space:nowrap}
+.xj-score__num{font-weight:var(--xj-weight-bold);color:var(--xj-text)}.xj-score__suf{color:var(--xj-text3)}

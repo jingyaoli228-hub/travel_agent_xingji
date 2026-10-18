@@ -1,0 +1,5 @@
+<view wx:if="{{visible}}" class="xj-toast {{leaving?'is-out':''}}" style="bottom:{{bottom}}rpx">
+  <view wx:if="{{icon}}" class="xj-icon xj-icon--{{icon}}"></view>
+  <text class="xj-toast__t">{{text}}</text>
+  <view wx:if="{{actionText}}" class="xj-toast__act" bindtap="onAction"><view class="xj-icon xj-icon--undo-white"></view>{{actionText}}</view>
+</view>

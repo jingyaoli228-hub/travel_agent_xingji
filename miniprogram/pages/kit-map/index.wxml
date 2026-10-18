@@ -1,0 +1,30 @@
+<view class="page">
+  <map class="map" latitude="39.892" longitude="116.402" scale="13" markers="{{markers}}" polyline="{{polyline}}" bindmarkertap="onMarker"></map>
+  <xj-nav-bar title="北京 3 日游" subtitle="10/24 - 10/26" bind:left="onMyTrips" bind:ready="onNavReady"></xj-nav-bar>
+  <view class="overlay" style="top:{{navH + 8}}px">
+    <xj-quality-badge score="{{score}}" bind:tap="openInsight"></xj-quality-badge>
+  </view>
+  <xj-bottom-sheet level="{{level}}" top-offset="{{navH}}" bind:change="onLevel">
+    <view slot="header">
+      <xj-day-tabs days="{{days}}" current="{{day}}" bind:change="onDay"></xj-day-tabs>
+      <view style="height:16rpx"></view>
+      <xj-offline-bar wx:if="{{offline}}"></xj-offline-bar>
+      <xj-alert-bar wx:else alerts="{{alerts}}"></xj-alert-bar>
+    </view>
+    <block wx:if="{{focus}}">
+      <xj-node-card index="1" name="天坛公园" time="09:00-11:30" duration="2.5h" meta="门票 ¥34" rating="4.8" locked tip="东门进，先祈年殿避开旅行团" expanded="{{level==='full'}}" play-duration="2h" steps="{{steps}}" bind:expand="onExpand" bind:close="onCloseNode" bind:action="onNodeAct"></xj-node-card>
+    </block>
+    <block wx:else>
+      <xj-itinerary-card time="09:00" duration="2.5h" name="天坛公园" meta="祈年殿 · 门票 ¥34" locked item-id="1" bind:tap="onCard"></xj-itinerary-card>
+      <xj-transit mode="subway" text="地铁 18 分钟"></xj-transit>
+      <xj-empty-slot time="12:00"></xj-empty-slot>
+      <xj-transit mode="walk" text="步行 8 分钟" estimated></xj-transit>
+      <xj-itinerary-card time="13:30" duration="1.5h" name="前门大街" meta="老字号 · 大栅栏" item-id="3" bind:tap="onCard"></xj-itinerary-card>
+      <xj-transit mode="taxi" text="打车 15 分钟"></xj-transit>
+      <xj-itinerary-card time="15:30" duration="2h" name="国家博物馆" meta="需预约" item-id="4" bind:tap="onCard"></xj-itinerary-card>
+    </block>
+  </xj-bottom-sheet>
+  <view class="chat"><xj-chat-bar disabled="{{offline}}" placeholder="{{offline?'离线中，联网后可修改':'告诉行迹：下午想轻松点…'}}" bind:send="onSend"></xj-chat-bar></view>
+  <xj-toast id="toast"></xj-toast>
+  <view class="sw" bindtap="toggleOffline">{{offline?'在线':'离线'}}演示</view>
+</view>

@@ -1,0 +1,9 @@
+<view class="itinerary-shell">
+  <xj-nav-bar title="行迹" left-text="我的行程" placeholder></xj-nav-bar>
+  <view class="itinerary-shell__content">
+    <view class="itinerary-shell__kicker">P0 · 行程首页</view>
+    <view class="itinerary-shell__title">组件包已接入</view>
+    <view class="itinerary-shell__sub">地图、三档抽屉和当天行程将在第 2 步接入。</view>
+    <xj-button type="dark" block bind:tap="openKitDemo">查看 UI Kit 演示</xj-button>
+  </view>
+</view>

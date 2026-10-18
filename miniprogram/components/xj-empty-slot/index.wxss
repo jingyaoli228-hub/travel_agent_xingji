@@ -1,0 +1,5 @@
+.xj-es{display:flex;align-items:center;gap:24rpx;padding:24rpx 28rpx;border-radius:var(--xj-radius-md);border:2rpx dashed var(--xj-text-disabled);background:transparent}
+.xj-es--hover{background:var(--xj-card)}
+.xj-es__time{width:88rpx;font-size:var(--xj-font-sm);font-weight:700;color:var(--xj-text3)}
+.xj-es__l{flex:1;font-size:var(--xj-font-body);color:var(--xj-text2)}
+.xj-es__act{font-size:var(--xj-font-caption);font-weight:700;color:var(--xj-primary)}

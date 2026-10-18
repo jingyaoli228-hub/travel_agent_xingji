@@ -1,0 +1,15 @@
+.xj-btn{display:inline-flex;align-items:center;justify-content:center;gap:12rpx;height:var(--xj-btn-h);padding:0 44rpx;margin:0;border-radius:var(--xj-radius-pill);font-size:var(--xj-font-body);font-weight:var(--xj-weight-bold);line-height:1;border:none;box-sizing:border-box}
+.xj-btn::after{border:none}
+.xj-btn--sm{height:var(--xj-btn-h-sm);padding:0 28rpx;font-size:var(--xj-font-sm)}
+.xj-btn--block{display:flex;width:100%}
+.xj-btn--primary{background:var(--xj-cta);color:#fff;box-shadow:var(--xj-shadow-cta)}
+.xj-btn--primary.xj-btn--hover{background:var(--xj-cta-pressed);opacity:1}
+.xj-btn--dark{background:var(--xj-primary);color:#fff}
+.xj-btn--secondary{background:var(--xj-primary-light);color:var(--xj-primary)}
+.xj-btn--text{background:transparent;color:var(--xj-primary);padding:0 16rpx}
+.xj-btn--hover{opacity:.85}
+.xj-btn.is-disabled{background:var(--xj-line)!important;color:var(--xj-text3)!important;box-shadow:none!important}
+.xj-btn--text.is-disabled{background:transparent!important}
+.xj-btn__icon{--xj-icon-size:32rpx}
+.xj-btn__spin{width:32rpx;height:32rpx;border-radius:50%;border:4rpx solid currentColor;border-right-color:transparent;animation:xjspin .8s linear infinite}
+@keyframes xjspin{to{transform:rotate(360deg)}}

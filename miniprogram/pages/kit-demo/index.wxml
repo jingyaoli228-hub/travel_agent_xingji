@@ -1,0 +1,60 @@
+<view class="demo">
+  <view class="sec"><view class="st">入口</view><xj-button type="dark" block bind:tap="goMap">打开行程页（首页）整页演示 ›</xj-button></view>
+  <view class="sec"><view class="st">COLOR · 对比度</view><view class="sw"><view wx:for="{{colors}}" wx:key="name" class="sw__i"><view class="sw__c" style="background:{{item.hex}}"></view><text class="sw__n">{{item.name}}</text><text class="sw__h">{{item.hex}}</text></view></view></view>
+  <view class="sec"><view class="st">BUTTON</view>
+    <view class="row"><xj-button type="primary" icon="spark-white" bind:tap="onBtn">开始规划</xj-button><xj-button type="dark">保存行程</xj-button></view>
+    <view class="row"><xj-button type="secondary">换一个</xj-button><xj-button type="text">查看全部 ›</xj-button></view>
+    <view class="row"><xj-button type="primary" loading>规划中</xj-button><xj-button type="dark" disabled>不可用</xj-button><xj-button type="primary" size="sm">小号</xj-button></view>
+  </view>
+  <view class="sec"><view class="st">CHIP</view>
+    <view class="row"><xj-chip wx:for="{{chips}}" wx:key="label" label="{{item.label}}" status="{{item.status}}" value="{{index}}" closable="{{item.closable}}" bind:tap="onChip" bind:close="onChipClose"></xj-chip></view>
+  </view>
+  <view class="sec"><view class="st">QUALITY BADGE（点击 → 透视面板） · SCORE（餐厅评分，中性）</view>
+    <view class="row"><xj-quality-badge score="{{92}}" bind:tap="onQuality"></xj-quality-badge><xj-quality-badge score="{{78}}" bind:tap="onQuality"></xj-quality-badge><xj-quality-badge score="{{52}}" status="fail" bind:tap="onQuality"></xj-quality-badge></view>
+    <view class="row"><xj-score-chip score="4.7"></xj-score-chip><xj-score-chip score="4.5" suffix="大众点评"></xj-score-chip></view>
+  </view>
+  <view class="sec"><view class="st">DAY TABS</view><xj-day-tabs days="{{days}}" current="{{day}}" bind:change="onDay"></xj-day-tabs></view>
+  <view class="sec"><view class="st">ALERT · 单一提醒位（优先级 + 折叠）</view>
+    <xj-alert-bar alerts="{{alerts}}" bind:action="onAlert"></xj-alert-bar><view class="gap"></view>
+    <xj-alert-bar alerts="{{alerts2}}"></xj-alert-bar><view class="gap"></view>
+    <xj-alert-bar type="info" text="Agent 已为你避开周末排队高峰" closable></xj-alert-bar><view class="gap"></view>
+    <xj-offline-bar bind:retry="onAlert"></xj-offline-bar>
+  </view>
+  <view class="sec"><view class="st">ITINERARY CARD · TRANSIT · EMPTY SLOT</view>
+    <xj-itinerary-card time="09:00" duration="2.5h" name="天坛公园" meta="祈年殿 · 回音壁 · 门票 ¥34" locked active item-id="1" bind:tap="onCard" bind:longpress="onCardLong"></xj-itinerary-card>
+    <xj-transit mode="subway" text="地铁 5 号线 · 18 分钟"></xj-transit>
+    <xj-empty-slot time="12:00" bind:tap="onSlot"></xj-empty-slot>
+    <xj-transit mode="walk" text="步行 8 分钟" estimated></xj-transit>
+    <xj-itinerary-card time="13:30" duration="1.5h" name="前门大街" meta="老字号 · 大栅栏" item-id="3"></xj-itinerary-card>
+    <xj-transit mode="taxi" text="打车 12 分钟" estimated></xj-transit>
+    <xj-itinerary-card time="15:30" duration="2h" name="国家博物馆" meta="需提前 3 天预约" conflict="仍然加入：当天结束时间晚于 21:00" item-id="4"></xj-itinerary-card>
+    <view class="gap"></view>
+    <xj-itinerary-card time="—" name="景山公园" meta="超出当天容量，已放入候补" waitlist item-id="5"></xj-itinerary-card>
+    <view class="gap"></view>
+    <xj-itinerary-card time="18:00" duration="1h" name="四季民福烤鸭" meta="人均 ¥180" rating="4.7" dimmed item-id="6"><view slot="tag" class="tag">已过时</view></xj-itinerary-card>
+  </view>
+  <view class="sec"><view class="st">NODE CARD（半屏）/ 玩法卡（全屏展开）</view>
+    <xj-node-card index="1" name="天坛公园" time="09:00-11:30" duration="2.5h" meta="门票 ¥34" rating="4.8" locked tip="东门进，先祈年殿避开 10 点后旅行团" expanded="{{nodeExp}}" play-duration="2h" steps="{{steps}}" bind:expand="onExpand" bind:action="onNodeAct"></xj-node-card>
+  </view>
+  <view class="sec"><view class="st">CONFLICT PREVIEW（加点）</view>
+    <xj-conflict-preview title="加入「景山公园」后" day-label="Day 1 结束" before="18:30" after="20:10" over impacts="{{impacts}}" bind:apply="onAlert" bind:force="onForce"></xj-conflict-preview>
+  </view>
+  <view class="sec"><view class="st">IMPORT RESULT（小红书）</view>
+    <xj-import-result title="北京三日游｜不踩雷的中轴线路线" places="{{places}}" bind:confirm="onImport" bind:fix="onAlert" bind:origin="onOrigin"></xj-import-result>
+  </view>
+  <view class="sec"><view class="st">TRIP ITEM（我的行程）</view>
+    <view wx:for="{{trips}}" wx:key="city" class="ti"><xj-trip-item city="{{item.city}}" dates="{{item.dates}}" days="{{item.days}}" status="{{item.status}}" summary="{{item.summary}}" cover="{{item.cover}}" trip-id="{{index}}" bind:tap="onTrip"></xj-trip-item></view>
+  </view>
+  <view class="sec"><view class="st">EMPTY STATE（无行程）</view><xj-empty-state bind:prompt="onPrompt"><xj-button type="primary" block icon="spark-white">开始规划</xj-button></xj-empty-state></view>
+  <view class="sec"><view class="st">SKELETON</view><xj-skeleton type="card" rows="{{2}}"></xj-skeleton><xj-skeleton type="text" rows="{{3}}"></xj-skeleton></view>
+  <view class="sec"><view class="st">CHAT BAR · TOAST</view>
+    <xj-chat-bar bind:send="onSend"></xj-chat-bar><view class="gap"></view>
+    <xj-chat-bar sending show-mic="{{false}}" placeholder="行迹思考中…"></xj-chat-bar><view class="gap"></view>
+    <xj-chat-bar disabled placeholder="离线中，联网后可修改"></xj-chat-bar><view class="gap"></view>
+    <xj-button type="secondary" bind:tap="showToast">触发 toast（5 秒 · 撤销）</xj-button>
+    <text class="log" wx:if="{{log}}">事件：{{log}}</text>
+  </view>
+  <view class="sec"><view class="st">MAP MARKER</view><view class="row"><image wx:for="{{markerIcons}}" wx:key="*this" class="mk" src="/assets/markers/{{item}}.png"></image></view></view>
+  <view style="height:120rpx"></view>
+  <xj-toast id="toast" bottom="{{60}}" bind:action="onUndo"></xj-toast>
+</view>

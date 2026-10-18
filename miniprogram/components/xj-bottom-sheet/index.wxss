@@ -1,0 +1,5 @@
+.xj-sheet{position:fixed;left:0;right:0;bottom:0;z-index:var(--xj-z-sheet);background:var(--xj-bg);border-radius:var(--xj-radius-lg) var(--xj-radius-lg) 0 0;box-shadow:0 -12rpx 40rpx rgba(20,30,50,.10);transition:transform .28s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.xj-sheet.is-drag{transition:none}
+.xj-sheet__head{padding:16rpx 32rpx 8rpx}
+.xj-sheet__handle{width:72rpx;height:8rpx;border-radius:4rpx;background:var(--xj-line);margin:0 auto 16rpx}
+.xj-sheet__body{padding:0 32rpx;box-sizing:border-box}
