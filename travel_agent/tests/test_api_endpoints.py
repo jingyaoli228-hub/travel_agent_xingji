@@ -128,3 +128,25 @@ def test_research_status_poll_self_heals_paused_session(monkeypatch):
     response = client.get("/api/research/status", params={"session_id": "paused-session"})
     assert response.json()["status"] == "running"
     assert calls == ["paused-session"]
+
+
+def test_planning_context_exposes_only_prefill_dimensions(monkeypatch):
+    from travel_agent.memory.profile_memory import ProfileMemory
+    from travel_agent.schemas.memory import UserProfile
+
+    monkeypatch.setattr(
+        ProfileMemory,
+        "get",
+        lambda self, user_id: UserProfile(
+            user_id=user_id,
+            travel_style="适中",
+            interest_preference=["人文古迹"],
+            food_constraints=["不吃辣"],
+            transport_preference="公共交通",
+        ),
+    )
+    response = client.get("/api/users/owner/planning-context")
+    assert response.status_code == 200
+    assert response.json()["prefilled"] is True
+    assert response.json()["profile"]["interests"] == ["人文古迹"]
+    assert "user_id" not in response.json()["profile"]

@@ -43,8 +43,12 @@ function postChat(sessionId, message, userId) {
   return request("/api/chat/stream", {
     method: "POST",
     data: { session_id: sessionId, user_id: userId, message },
-    timeout: 60000
+    timeout: 180000
   }).then(parseSse)
+}
+
+function getPlanningContext(userId) {
+  return request(`/api/users/${encodeURIComponent(userId)}/planning-context`, { timeout: 15000 })
 }
 
 function getResearchStatus(sessionId) {
@@ -67,4 +71,4 @@ function rollbackPatch(tripId, planVersion) {
   })
 }
 
-module.exports = { postChat, getResearchStatus, getSession, getTripOverview, rollbackPatch }
+module.exports = { postChat, getResearchStatus, getSession, getPlanningContext, getTripOverview, rollbackPatch }

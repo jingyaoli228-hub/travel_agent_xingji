@@ -343,10 +343,10 @@ Page({
 
   onEmptyPrompt(event) {
     wx.setStorageSync('travel-agent:draft-prompt', event.detail.text)
-    wx.showToast({ title: '主流程将在第 3 步接入', icon: 'none' })
+    wx.navigateTo({ url: '/pages/planning/index' })
   },
 
   startPlanning() {
-    wx.showToast({ title: '主流程将在第 3 步接入', icon: 'none' })
+    wx.navigateTo({ url: '/pages/planning/index' })
   }
 })

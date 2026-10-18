@@ -1,0 +1,77 @@
+<view class="planning-page" style="padding-top:{{navH}}px">
+  <xj-nav-bar title="{{phase==='input'?'行迹':phase==='preferences'?'确认你的偏好':phase==='selection'?'确认想去的地点':'规划新行程'}}"
+    left-text="返回" bind:left="goBack" bind:ready="onNavReady"></xj-nav-bar>
+
+  <view wx:if="{{phase==='input'}}" class="flow input-state">
+    <view class="hero-art"><view class="hero-art__sun"></view><view class="hero-art__mountain"></view></view>
+    <view class="flow__title">想去哪儿玩？</view>
+    <view class="flow__sub">一句话告诉我，剩下的我来排</view>
+    <textarea class="prompt-box" value="{{prompt}}" maxlength="500" auto-height
+      placeholder="例如：10/24 和朋友去北京 3 天，喜欢人文古迹，别太累" bindinput="onPromptInput"></textarea>
+    <view class="quick-title">试试这样说</view>
+    <view class="quick-list">
+      <view class="quick" data-text="北京 3 天，第一次去，想看经典景点" bindtap="choosePrompt">北京 3 天，第一次去</view>
+      <view class="quick" data-text="周末去杭州 2 天，节奏松弛，喜欢拍照" bindtap="choosePrompt">周末杭州 2 天</view>
+      <view class="quick" data-text="带父母去成都 4 天，少走路，不吃辣" bindtap="choosePrompt">带爸妈去成都 4 天</view>
+    </view>
+    <xj-button type="primary" block loading="{{busy}}" disabled="{{!prompt}}" bind:tap="submitIntent">发送</xj-button>
+  </view>
+
+  <view wx:elif="{{phase==='preferences'}}" class="flow preference-state">
+    <view class="requirement-card">从你的一句话识别到：{{requirement.destination || '目的地待确认'}} · {{requirement.duration_days || 3}} 天 · {{requirement.travelers || requirement.traveler_count || '同行人数待确认'}}</view>
+    <view wx:if="{{profileHint}}" class="profile-hint">{{profileHint}}</view>
+    <view class="section-title">兴趣（可多选）</view>
+    <view class="option-row"><xj-chip wx:for="{{styles}}" wx:key="label" label="{{item.label}}" status="{{item.selected?'selected':'default'}}" data-key="styles" data-index="{{index}}" bind:tap="toggleOption"></xj-chip></view>
+    <view class="section-title">节奏</view>
+    <view class="option-row"><xj-chip wx:for="{{paces}}" wx:key="label" label="{{item.label}}" status="{{item.selected?'selected':'default'}}" data-key="paces" data-index="{{index}}" bind:tap="toggleOption"></xj-chip></view>
+    <view class="section-title">作息</view>
+    <view class="option-row"><xj-chip wx:for="{{wakes}}" wx:key="label" label="{{item.label}}" status="{{item.selected?'selected':'default'}}" data-key="wakes" data-index="{{index}}" bind:tap="toggleOption"></xj-chip></view>
+    <view class="section-title">必去 <text>每次都问</text></view>
+    <input class="line-input" value="{{mustGo}}" placeholder="输入本次一定要去的地点，没有可留空" bindinput="onMustInput" />
+    <view class="section-title">不想去 <text>每次都问</text></view>
+    <input class="line-input" value="{{avoid}}" placeholder="输入本次不想去的地点，没有可留空" bindinput="onAvoidInput" />
+    <view class="prepare-row"><text>确认后开始准备目的地资料</text><text>高德 · 攻略 RAG · 记忆</text></view>
+    <xj-button type="primary" block loading="{{busy}}" bind:tap="confirmPreferences">确认，开始规划</xj-button>
+  </view>
+
+  <view wx:elif="{{phase==='planning'}}" class="flow planning-state">
+    <view class="progress-pill">评审中…</view>
+    <view class="flow__title">{{requirement.destination || '你的行程'}} {{daySkeletons.length}} 日游</view>
+    <view class="flow__sub">{{progressText}}</view>
+    <view class="progress-track"><view class="progress-track__fill" style="width:{{(progressStep + 1) * 20}}%"></view></view>
+    <view wx:for="{{daySkeletons}}" wx:key="day" class="day-skeleton {{item.ready?'is-ready':''}}">
+      <view class="day-skeleton__head">Day {{item.day}} <text>{{item.ready?'已排入首批地点':'安排中…'}}</text></view>
+      <xj-skeleton wx:if="{{!item.ready}}" type="list" rows="{{2}}"></xj-skeleton>
+      <view wx:else class="ready-line">已形成当天骨架，路线与质量仍在评审</view>
+    </view>
+    <view class="background-tip">可以切到后台，回来可继续查看进度</view>
+  </view>
+
+  <view wx:elif="{{phase==='selection'}}" class="flow selection-state">
+    <view class="capacity">已选 {{selectedCount}} 个，{{requirement.duration_days || 3}} 天大约能排 {{capacity}} 个</view>
+    <view wx:if="{{overflow>0}}" class="overflow">超出约 {{overflow}} 个；确认后多出的按评分进入当天候补，不会丢失</view>
+    <view class="section-title">必去 · 永不折叠</view>
+    <view wx:for="{{candidates}}" wx:key="name" wx:if="{{item.choice==='must'}}" class="candidate" data-index="{{index}}" bindtap="cycleChoice">
+      <view><text class="candidate__name">{{item.name}}</text><text class="candidate__meta">{{item.type || item.group}} · {{item.rating || '待评分'}}</text></view><text class="choice choice--{{item.choice}}">必去</text>
+    </view>
+    <view class="section-title">候选地点 · 点按切换档位</view>
+    <view wx:for="{{candidates}}" wx:key="name" wx:if="{{item.choice!=='must'}}" class="candidate" data-index="{{index}}" bindtap="cycleChoice">
+      <view><text class="candidate__name">{{item.name}}</text><text class="candidate__meta">{{item.type || item.group}} · {{item.rating || '待评分'}}</text></view><text class="choice choice--{{item.choice}}">{{item.choice==='want'?'想去':item.choice==='optional'?'可选':'排除'}}</text>
+    </view>
+    <view class="dual-actions"><xj-button type="primary" data-mode="recommended" bind:tap="submitSelection">按建议处理</xj-button><xj-button type="secondary" data-mode="mine" bind:tap="submitSelection">按我选的出草稿</xj-button></view>
+  </view>
+
+  <view wx:elif="{{phase==='draft'}}" class="flow draft-state">
+    <view class="draft-score {{score>=85?'is-pass':'is-draft'}}">{{score>=85?'评审 '+score+'/100':'草稿 · 质量 '+score+'/100'}}</view>
+    <view class="flow__title">{{requirement.destination || '行程'}}草稿</view>
+    <view wx:if="{{score<85}}" class="quality-card"><view class="quality-card__title">还不是成品：质量 {{score}} / 85</view><view wx:for="{{issues}}" wx:key="*this" class="quality-card__issue">· {{item}}</view><view class="dual-actions"><xj-button type="primary" loading="{{busy}}" bind:tap="autoFix">自动修正</xj-button><xj-button type="secondary" bind:tap="openTrip">我自己改</xj-button></view></view>
+    <view wx:for="{{draftDays}}" wx:key="day_id" class="draft-day"><view class="draft-day__head">Day {{item.day_number}} · {{item.city}}</view><view wx:for="{{item.items}}" wx:key="item_id" class="draft-item"><text>{{item.time}}</text><text>{{item.name || item.location}}</text></view></view>
+    <xj-button type="primary" block bind:tap="openTrip">进入行程地图</xj-button>
+  </view>
+
+  <view wx:else class="flow error-state">
+    <view class="error-icon">!</view><view class="flow__title">规划失败</view><view class="flow__sub">{{planningError}}</view>
+    <view wx:if="{{partialDays.length}}" class="partial"><view class="section-title">已保留生成的部分</view><view wx:for="{{partialDays}}" wx:key="day_id">Day {{item.day_number}} · {{item.items.length}} 个节点</view></view>
+    <view class="dual-actions"><xj-button type="primary" bind:tap="retry">重试</xj-button><xj-button type="secondary" bind:tap="editRequest">改一下需求</xj-button></view>
+  </view>
+</view>

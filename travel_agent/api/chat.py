@@ -201,3 +201,27 @@ def get_session(session_id: str) -> ChatResponse:
     if snapshot is None or not snapshot.values:
         raise HTTPException(status_code=404, detail=f"No session found for session_id={session_id!r}")
     return _snapshot_response(graph, config)
+
+
+@router.get("/api/users/{user_id}/planning-context")
+def planning_context(user_id: str) -> Dict[str, Any]:
+    """Small, read-only P0 projection used to prefill preference chips.
+
+    The full profile remains an internal memory concern; the mini program only
+    receives the dimensions it can confirm on the lightweight preference page.
+    """
+    from travel_agent.memory.profile_memory import ProfileMemory
+
+    profile = ProfileMemory().get(user_id)
+    if profile is None:
+        return {"profile": None, "prefilled": False}
+    return {
+        "profile": {
+            "travel_style": profile.travel_style,
+            "interests": profile.interest_preference,
+            "food_constraints": profile.food_constraints,
+            "transport_preference": profile.transport_preference,
+            "updated_at": profile.updated_at,
+        },
+        "prefilled": True,
+    }

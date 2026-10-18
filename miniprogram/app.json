@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/itinerary/index",
+    "pages/planning/index",
     "pages/kit-demo/index",
     "pages/kit-map/index",
     "pages/index/index"
