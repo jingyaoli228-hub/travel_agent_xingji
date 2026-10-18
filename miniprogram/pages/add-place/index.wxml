@@ -1,0 +1,9 @@
+<view class="add-page" style="padding-top:{{navH}}px"><xj-nav-bar title="添加地点" left-text="返回" bind:left="goBack" bind:ready="onNavReady"></xj-nav-bar>
+  <view class="search"><input value="{{query}}" placeholder="搜索景点、道路或餐厅" confirm-type="search" bindinput="onQuery" bindconfirm="search"/><xj-button size="sm" loading="{{busy}}" bind:tap="search">搜索</xj-button></view>
+  <view wx:if="{{!selected}}" class="results"><view wx:for="{{results}}" wx:key="place_id" class="result" data-index="{{index}}" bindtap="choosePlace"><view><text>{{item.name}}</text><text>{{item.address || item.type}}</text></view><text>{{item.distance_meters ? item.distance_meters + 'm' : ''}}</text></view></view>
+  <view wx:else class="preview-flow"><view class="place-title">加「{{selected.name}}」到哪一天？</view><xj-day-tabs days="{{days}}" current="{{currentDay}}" bind:change="chooseDay"></xj-day-tabs>
+    <view wx:if="{{!preview && !conflict}}" class="place-card"><text>{{selected.name}}</text><text>{{selected.address}}</text><xj-button type="primary" block loading="{{busy}}" bind:tap="previewSelected">预览插入位置</xj-button></view>
+    <xj-conflict-preview wx:if="{{conflict}}" title="加入后会影响当天安排" day-label="Day {{currentDay+1}}" before="原计划" after="有冲突" over="{{true}}" impacts="{{conflictImpacts}}" bind:apply="applySuggested" bind:force="forceAdd"></xj-conflict-preview>
+    <view wx:if="{{preview}}" class="day-preview"><view class="preview-title">插入位置预览 · Day {{currentDay+1}}</view><view wx:for="{{preview.updated_day_plan.items}}" wx:key="item_id" class="preview-item {{item.place_id===selected.place_id?'is-new':''}}"><text>{{item.time}}</text><text>{{item.name || item.location}}</text><text>{{item.place_id===selected.place_id?'插在这里':''}}</text></view><view wx:if="{{preview.changed_items.length}}" class="impact">当天其余节点已按新路线顺延；只重算这一天</view><xj-button type="primary" block loading="{{busy}}" bind:tap="apply">确认加入</xj-button></view>
+  </view>
+</view>

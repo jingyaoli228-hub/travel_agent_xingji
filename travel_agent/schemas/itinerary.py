@@ -40,6 +40,7 @@ class ItineraryItem(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     rating: Optional[float] = None
+    conflict_reason: Optional[str] = None
     user_locked: bool = False
     source: Literal["planner", "user_added", "hotel_selection", "transport"] = "planner"
     place_details_status: str = "UNKNOWN"

@@ -65,6 +65,7 @@ class InsertPoiRequest(VersionedMutation):
     insert_after_item_id: Optional[str] = None
     preferred_duration_minutes: int = 90
     user_locked: bool = True
+    force_insert: bool = False
 
 
 class ApplyPatchRequest(VersionedMutation):

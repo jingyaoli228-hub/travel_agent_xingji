@@ -62,6 +62,17 @@ def test_cross_city_and_closing_time_conflicts(service):
     assert "闭馆" in service.preview_insert("trip", "day_1", request())["reason"]
 
 
+def test_force_insert_keeps_visible_conflict_reason(service):
+    service.place_details_provider = lambda place_id: {
+        "success": True, "name": "Early Museum", "city": "Tokyo",
+        "closing_time": "10:00", "place_id": place_id,
+    }
+    preview = service.preview_insert("trip", "day_1", request(force_insert=True))
+    added = next(item for item in preview["updated_day_plan"]["items"] if item["place_id"] == "new_place")
+    assert preview["status"] == "PREVIEW"
+    assert "闭馆" in added["conflict_reason"]
+
+
 def test_route_time_shifts_following_item_and_metrics_are_returned(service):
     service.route_provider = lambda **kwargs: {"success": True, "duration_minutes": 90, "distance_km": 8}
     preview = service.preview_insert("trip", "day_1", request())

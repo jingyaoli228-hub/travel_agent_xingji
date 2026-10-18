@@ -2,6 +2,7 @@
   <map wx:if="{{hasTrip && !offline && !readOnly}}" class="itinerary-map"
     latitude="{{latitude}}" longitude="{{longitude}}" scale="13"
     markers="{{markers}}" polyline="{{polyline}}" bindmarkertap="onMarker"
+    bindpoitap="openAddPlace"
     enable-3D="{{false}}" show-location="{{false}}"></map>
   <canvas wx:elif="{{hasTrip}}" canvas-id="offlineRouteCanvas" class="offline-canvas"></canvas>
   <view wx:else class="empty-map"></view>
@@ -64,7 +65,15 @@
       time="{{focusItem.time}}" duration="{{focusItem.durationLabel}}" meta="{{focusItem.location}}"
       rating="{{focusItem.rating}}" locked="{{focusItem.user_locked}}" tip="{{focusItem.reason}}"
       expanded="{{level==='full'}}" play-duration="{{focusItem.durationLabel}}" steps="{{focusItem.steps}}"
-      bind:expand="onExpandNode" bind:close="onCloseNode" bind:action="onNodeAction"></xj-node-card>
+      bind:expand="onExpandNode" bind:close="onCloseNode" bind:action="onNodeAction">
+      <view slot="play" wx:if="{{focusItem.play}}" class="play-extra">
+        <view class="play-extra__why"><text>为什么给你排</text>{{focusItem.play.why}}</view>
+        <view class="play-extra__cols"><view><text>必看</text>{{focusItem.play.mustSee.join('、')}}</view><view><text>可跳过</text>{{focusItem.play.skippable.join('、')}}</view></view>
+        <view class="play-extra__tip">避坑：{{focusItem.play.tips.join('；')}}</view>
+        <view class="play-extra__source">资料更新于 {{focusItem.play.updatedAt}} · {{focusItem.play.sourceStatus}}</view>
+        <view class="play-extra__actions"><view bindtap="expandPlay">展开到行程</view><view data-url="{{focusItem.play.sources[0].url}}" bindtap="copyPlaySource">看原笔记 {{focusItem.play.sources.length}} 篇</view></view>
+      </view>
+    </xj-node-card>
 
     <view wx:else class="day-list">
       <block wx:for="{{dayEntries}}" wx:key="index">
@@ -74,6 +83,7 @@
         <xj-itinerary-card wx:else item-id="{{item.node.item_id}}" time="{{item.node.time}}"
           duration="{{item.node.durationLabel}}" name="{{item.node.displayName}}" meta="{{item.node.meta}}"
           locked="{{item.node.user_locked}}" rating="{{item.node.rating}}"
+          conflict="{{item.node.conflictReason}}"
           active="{{focusItem && focusItem.item_id===item.node.item_id}}" bind:tap="onCard"></xj-itinerary-card>
         <xj-transit wx:if="{{item.transit}}" mode="{{item.transit.mode}}"
           text="{{item.transit.text}}" estimated="{{item.transit.estimated}}"></xj-transit>
@@ -82,7 +92,8 @@
   </xj-bottom-sheet>
 
   <view wx:if="{{hasTrip}}" class="chat-wrap">
-    <xj-chat-bar disabled="{{readOnly}}" sending="{{sending}}"
+    <view class="add-place-btn {{readOnly?'is-off':''}}" bindtap="openAddPlace">＋ 加地点</view>
+    <xj-chat-bar class="chat-input" disabled="{{readOnly}}" sending="{{sending}}"
       placeholder="{{readOnly?'离线只读，联网后可修改':'告诉行迹：下午想轻松点…'}}"
       bind:focus="onChatFocus" bind:send="onSend"></xj-chat-bar>
   </view>

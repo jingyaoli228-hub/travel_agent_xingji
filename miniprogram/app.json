@@ -2,6 +2,7 @@
   "pages": [
     "pages/itinerary/index",
     "pages/planning/index",
+    "pages/add-place/index",
     "pages/kit-demo/index",
     "pages/kit-map/index",
     "pages/index/index"

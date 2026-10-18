@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const cache = require('../../utils/trip-cache')
 const { COLOR, poiMarker, typeMarker, routeLineByMode } = require('../../utils/map-style')
+const playcards = require('../../data/beijing-top20-playcards.json')
 
 const MODE = {
   WALK: { component: 'walk', label: '步行' },
@@ -76,6 +77,10 @@ Page({
 
   onNavReady(event) { this.setData({ navH: event.detail.totalHeight }) },
   onMyTrips() { wx.showToast({ title: '“我的行程”将在第 5 步接入', icon: 'none' }) },
+
+  onShow() {
+    if (this.data.tripId && this.data.hasTrip) this.loadOverview({ silent: true })
+  },
 
   async loadOverview(options = {}) {
     const tripId = this.data.tripId
@@ -168,7 +173,8 @@ Page({
           durationLabel: durationLabel(item.duration_minutes),
           pendingMeal: isPendingMeal(item),
           meta: item.reason || item.location || '',
-          index: itemIndex + 1
+          index: itemIndex + 1,
+          conflictReason: item.conflict_reason || ''
         }),
         transit: route ? {
           mode: mode.component,
@@ -230,9 +236,11 @@ Page({
     const entry = this.data.dayEntries.find(row => row.node.item_id === itemId)
     if (!entry) return
     const node = entry.node
+    const play = playcards.find(card => node.displayName.indexOf(card.name) >= 0 || card.name.indexOf(node.displayName) >= 0)
     this.setData({
       focusItem: Object.assign({}, node, {
-        steps: [{ title: node.displayName, desc: node.reason || '', time: node.durationLabel }]
+        play: play || null,
+        steps: play ? play.route : [{ title: node.displayName, desc: node.reason || '', time: node.durationLabel }]
       }),
       conversationOpen: false, qualityOpen: false, level: 'half'
     })
@@ -240,7 +248,29 @@ Page({
 
   onCloseNode() { this.setData({ focusItem: null }) },
   onExpandNode(event) { this.setData({ level: event.detail.expanded ? 'full' : 'half' }) },
-  onNodeAction() { wx.showToast({ title: '该编辑操作将在第 4 步接入', icon: 'none' }) },
+  onNodeAction(event) {
+    if (event.detail.act === 'lock') wx.showToast({ title: '已记录锁定意图，可通过对话修改', icon: 'none' })
+    else wx.showToast({ title: '请在对话栏描述这次修改', icon: 'none' })
+  },
+
+  openAddPlace(event) {
+    if (this.data.readOnly) return
+    const day = this.data.days[this.data.currentDay]
+    const query = event && event.detail && event.detail.name ? `&query=${encodeURIComponent(event.detail.name)}` : ''
+    wx.navigateTo({ url: `/pages/add-place/index?tripId=${encodeURIComponent(this.data.tripId)}&dayId=${encodeURIComponent(day.dayId)}${query}` })
+  },
+
+  expandPlay() {
+    if (!this.data.focusItem || !this.data.focusItem.play) return
+    this.setData({ level: 'full' })
+    this.selectComponent('#toast').show({ text: '已展开玩法子节点，当天总时长不变' })
+  },
+
+  copyPlaySource(event) {
+    const url = event.currentTarget.dataset.url
+    if (!url) return
+    wx.setClipboardData({ data: url, success: () => wx.showToast({ title: '已复制，到小红书粘贴打开', icon: 'none' }) })
+  },
 
   openInsight() {
     this.setData({ qualityOpen: true, conversationOpen: false, focusItem: null, level: 'full' })

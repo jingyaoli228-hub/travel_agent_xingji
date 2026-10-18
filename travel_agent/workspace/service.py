@@ -177,8 +177,12 @@ class WorkspaceService:
             if before_route:
                 start_minutes += round(before_route.duration_minutes)
             closing = self._hhmm(details.get("closing_time"))
-            if closing is not None and start_minutes + duration > closing:
+            force_insert = bool(payload.get("force_insert"))
+            conflict_reason = None
+            if closing is not None and start_minutes + duration > closing and not force_insert:
                 return self._conflict("加入该景点后无法在闭馆前完成游览", day_id, duration)
+            if closing is not None and start_minutes + duration > closing:
+                conflict_reason = "加入后可能无法在闭馆前完成游览"
             added = ItineraryItem(
                 item_id=f"item_{uuid4().hex[:12]}", place_id=payload["place_id"], time=self._format_minutes(start_minutes),
                 activity=self._activity_type(details), item_type=self._activity_type(details), name=details["name"],
@@ -186,7 +190,7 @@ class WorkspaceService:
                 estimated_cost=float(details.get("estimated_cost") or 0), reason="用户手动添加",
                 city=day.city, latitude=details.get("latitude"), longitude=details.get("longitude"),
                 primary_category=details.get("primary_category"), user_locked=bool(payload.get("user_locked", True)),
-                source="user_added", place_details_status="VERIFIED",
+                source="user_added", place_details_status="VERIFIED", conflict_reason=conflict_reason,
             )
             day.items.insert(index, added)
             changed = [{"action": "ADD", "item_id": added.item_id, "name": added.name}]
@@ -201,8 +205,10 @@ class WorkspaceService:
                     item.time = self._format_minutes(cursor)
                     changed.append({"action": "SHIFT", "item_id": item.item_id, "from": old, "to": item.time})
                 cursor = (self._hhmm(item.time) or cursor) + item.duration_minutes
-            if cursor > 24 * 60 or self._meal_or_return_conflict(day):
+            if (cursor > 24 * 60 or self._meal_or_return_conflict(day)) and not force_insert:
                 return self._conflict("顺延后与晚餐或返程时间冲突", day_id, duration)
+            if force_insert and (cursor > 24 * 60 or self._meal_or_return_conflict(day)):
+                added.conflict_reason = "当天超时或与晚餐/返程冲突；你选择了仍然加入"
             routes = self._routes_for_day(day)
             validation = ConstraintValidator().validate(Itinerary(days=[day]), TravelConstraintSet()).model_dump()
             metrics = TripCraftMetricEvaluator().evaluate(Itinerary(days=[day]), {}, ConstraintValidator().validate(Itinerary(days=[day]), TravelConstraintSet())).model_dump()

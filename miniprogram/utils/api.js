@@ -71,4 +71,26 @@ function rollbackPatch(tripId, planVersion) {
   })
 }
 
-module.exports = { postChat, getResearchStatus, getSession, getPlanningContext, getTripOverview, rollbackPatch }
+function autocompletePlaces(query, city, latitude, longitude) {
+  const params = [`q=${encodeURIComponent(query)}`, `city=${encodeURIComponent(city || '')}`]
+  if (latitude != null) params.push(`latitude=${encodeURIComponent(latitude)}`)
+  if (longitude != null) params.push(`longitude=${encodeURIComponent(longitude)}`)
+  return request(`/api/places/autocomplete?${params.join('&')}`, { timeout: 30000 })
+}
+
+function previewInsert(tripId, dayId, payload) {
+  return request(`/api/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(dayId)}/preview-insert`, {
+    method: 'POST', data: payload, timeout: 120000
+  })
+}
+
+function applyPatch(tripId, payload) {
+  return request(`/api/trips/${encodeURIComponent(tripId)}/apply-patch`, {
+    method: 'POST', data: payload, timeout: 120000
+  })
+}
+
+module.exports = {
+  postChat, getResearchStatus, getSession, getPlanningContext, getTripOverview, rollbackPatch,
+  autocompletePlaces, previewInsert, applyPatch
+}
