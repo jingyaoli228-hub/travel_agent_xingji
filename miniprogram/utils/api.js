@@ -1,4 +1,4 @@
-const { apiBaseUrl } = require("../config")
+const { apiBaseUrl, trialAccessKey } = require("../config")
 
 function request(path, options = {}) {
   return new Promise((resolve, reject) => {
@@ -6,7 +6,11 @@ function request(path, options = {}) {
       url: `${apiBaseUrl}${path}`,
       method: options.method || "GET",
       data: options.data,
-      header: { "content-type": "application/json", ...(options.header || {}) },
+      header: {
+        "content-type": "application/json",
+        ...(trialAccessKey ? { "X-Xingji-Trial-Key": trialAccessKey } : {}),
+        ...(options.header || {})
+      },
       timeout: options.timeout || 60000,
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) resolve(res.data)
