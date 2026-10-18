@@ -494,7 +494,7 @@ class ResearchOrchestratorAgent:
         if results and results[0].get("success") is False:
             _logger.info("Web guide search unavailable: %s", results[0].get("error"))
             return [], f"网页攻略搜索不可用：{results[0].get('error')}"
-        return ([Source(title=r["title"], url=r["url"] or "https://www.google.com/search?q=" + req.destination,
+        return ([Source(title=r["title"], url=r["url"] or "",
                         source_type="web", snippet=r.get("snippet")) for r in results], None)
 
     def _social_research_worker(self, req: TravelRequirement) -> tuple[List[Source], Optional[str]]:
@@ -575,7 +575,7 @@ class ResearchOrchestratorAgent:
         if not e.detailed_description:
             parts = [f"{e.name}位于{e.location}，属于{label}类体验。"]
             if e.rating:
-                parts.append(f"Google 评分 {e.rating:.1f}。")
+                parts.append(f"高德评分 {e.rating:.1f}。")
             if e.opening_hours:
                 parts.append(f"营业时间：{e.opening_hours}。")
             e.detailed_description = "".join(parts)
