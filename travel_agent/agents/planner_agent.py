@@ -44,6 +44,19 @@ _MODE_LABELS = {"WALK": "步行", "TRANSIT": "公共交通", "DRIVE": "驾车"}
 _INTEREST_TO_TYPE = {"购物": "shopping", "美食": "food", "人文": "culture", "自然": "nature", "摄影": "photography"}
 
 
+def _place_fields(experience: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep provider identity and GCJ-02 coordinates through planning."""
+    return {
+        "place_id": experience.get("place_id"),
+        "latitude": experience.get("latitude"),
+        "longitude": experience.get("longitude"),
+        "rating": experience.get("rating"),
+        "name": experience.get("name"),
+        "item_type": "restaurant" if experience.get("type") == "food" else experience.get("type"),
+        "place_details_status": "VERIFIED" if experience.get("place_id") else "UNKNOWN",
+    }
+
+
 def _hhmm_to_minutes(hhmm: str) -> int:
     try:
         h, m = hhmm.split(":")
@@ -211,6 +224,7 @@ class PlannerAgent:
                     duration_minutes=e.get("duration_minutes", 90), estimated_cost=(e.get("cost") or 0) * num_travelers,
                     reason="；".join(e.get("advantages", [])[:2]) or f"符合您的兴趣偏好（{e.get('type', '')}）。",
                     region=e.get("region") or region,
+                    **_place_fields(e),
                 )
             )
             return t + e.get("duration_minutes", 90) + route["duration_minutes"], e["location"]
@@ -229,6 +243,7 @@ class PlannerAgent:
                 transport=f"{route['label']} 约{route['duration_minutes']}分钟", duration_minutes=75,
                 estimated_cost=(meal.get("cost") or 100) * num_travelers,
                 reason="；".join(meal.get("advantages", [])[:2]) or "当地推荐餐厅。",
+                **_place_fields(meal),
             )
         )
         t = lunch_t + 75 + 15
@@ -248,6 +263,7 @@ class PlannerAgent:
                 transport=f"{route['label']} 约{route['duration_minutes']}分钟", duration_minutes=90,
                 estimated_cost=(meal.get("cost") or 100) * num_travelers,
                 reason="；".join(meal.get("advantages", [])[:2]) or "当地推荐餐厅，结束一天行程。",
+                **_place_fields(meal),
             )
         )
         t = dinner_t + 90

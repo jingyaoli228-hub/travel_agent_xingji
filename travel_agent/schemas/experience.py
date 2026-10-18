@@ -77,6 +77,9 @@ class TravelExperience(BaseModel):
     category: str = Field(default="", description="更细的子分类，例如 'vinyl shop'/'jazz bar'")
     location: str
     address: Optional[str] = Field(default=None, description="详细地址")
+    place_id: Optional[str] = Field(default=None, description="地图服务地点 ID")
+    latitude: Optional[float] = Field(default=None, description="GCJ-02 纬度（境内高德来源）")
+    longitude: Optional[float] = Field(default=None, description="GCJ-02 经度（境内高德来源）")
     region: Optional[str] = Field(default=None, description="所属区域（复杂目的地拆分时使用），例如 'Canggu'")
     rating: float = 0.0
     popularity: float = Field(default=0.0, description="0-100 热度分数")

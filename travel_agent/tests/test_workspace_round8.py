@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -78,6 +80,31 @@ def test_route_failure_is_explicit_fallback(service):
     assert "不代表真实路线" in routes[0].warning
 
 
+def test_legacy_items_get_geodata_without_bumping_plan_version():
+    service = WorkspaceService()
+    item = activity("legacy", "09:00", "Legacy Place")
+    item.place_id = None; item.latitude = None; item.longitude = None
+    service.seed("legacy-trip", [DayPlan(day_number=1, day_id="day_1", city="Beijing", items=[item])])
+    service.place_search_provider = lambda **kwargs: [{
+        "place_id": "amap-legacy", "name": "Legacy Place",
+        "location": {"lat": 39.9, "lng": 116.4}, "rating": 4.7,
+    }]
+    state = service.ensure_geodata("legacy-trip")
+    assert state.plan_version == 1
+    assert state.days[0].items[0].place_id == "amap-legacy"
+    assert state.days[0].items[0].latitude == 39.9
+
+
+def test_rollback_restores_previous_days_and_advances_version(service):
+    before = service.get("trip").days[0].model_dump()
+    preview = service.preview_insert("trip", "day_1", request())
+    applied = service.apply_patch("trip", preview["patch_id"], 1, "apply-for-undo")
+    restored = service.rollback("trip", applied["plan_version"])
+    assert restored.plan_version == 3
+    assert restored.days[0].model_dump() == before
+    assert restored.history == []
+
+
 def test_hotel_candidates_never_fabricate_price_or_rules(service):
     service.place_search_provider = lambda **kwargs: [{"place_id": "hotel-1", "name": "Real Hotel", "address": "Tokyo",
         "location": {"lat": 35.2, "lng": 139.2}, "rating": 4.8, "user_rating_count": 12}]
@@ -117,3 +144,32 @@ def test_mutation_endpoint_returns_409_for_stale_plan_version(monkeypatch):
     })
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "PLAN_VERSION_CONFLICT"
+
+
+def test_itinerary_overview_aggregates_routes_quality_and_history(monkeypatch):
+    from travel_agent.main import app
+    from travel_agent.api import workspace as api_module
+    local = WorkspaceService()
+    local.seed("overview-trip", [DayPlan(day_number=1, day_id="day_1", date="2026-10-18", city="Beijing",
+        items=[activity("a", "09:00", "A"), activity("b", "11:00", "B")])])
+    local.route_provider = lambda **kwargs: {
+        "success": True, "duration_minutes": 18, "distance_km": 2.1,
+        "polyline": [{"lat": 39.9, "lng": 116.4}, {"lat": 39.91, "lng": 116.41}],
+    }
+    fake_values = {
+        "stage": "done", "travel_requirement": {"destination": "北京"},
+        "review_report": {"score": 78, "passed": False, "issues": ["步行偏多"]},
+        "conversation_history": [{"role": "user", "content": "轻松一点"}],
+        "final_plan": {"notes": ["周日下午可能有雨"]},
+    }
+    monkeypatch.setattr(api_module, "workspace_service", local)
+    monkeypatch.setattr(api_module, "get_compiled_graph", lambda: SimpleNamespace(
+        get_state=lambda config: SimpleNamespace(values=fake_values)
+    ))
+    response = TestClient(app).get("/api/trips/overview-trip/overview")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["title"] == "北京 1 日游"
+    assert payload["quality"]["score"] == 78
+    assert payload["route_segments_by_day"]["day_1"][0]["status"] == "REAL_ROUTE"
+    assert [alert["type"] for alert in payload["alerts"]] == ["quality", "risk"]

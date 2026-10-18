@@ -49,6 +49,77 @@ def get_days(trip_id: str) -> dict[str, Any]:
             "hotel_selection_status": state.hotel_selection_status, "selected_hotels_by_city": state.selected_hotels_by_city}
 
 
+@router.get("/trips/{trip_id}/overview")
+def get_trip_overview(trip_id: str) -> dict[str, Any]:
+    """One request for the P0 itinerary home, including map and history data."""
+    _ensure_workspace(trip_id)
+    state = workspace_service.ensure_geodata(trip_id)
+    route_segments_by_day: dict[str, list[dict[str, Any]]] = {}
+    for day in state.days:
+        day_id = day.day_id or f"day_{day.day_number}"
+        route_segments_by_day[day_id] = [segment.model_dump() for segment in workspace_service.routes(trip_id, day_id)]
+
+    graph = get_compiled_graph()
+    snapshot = graph.get_state({"configurable": {"thread_id": trip_id}})
+    values = snapshot.values if snapshot else {}
+    requirement = values.get("travel_requirement") or {}
+    final_plan = values.get("final_plan") or {}
+    review = values.get("review_report") or {}
+    strict_review = values.get("strict_evaluation") or {}
+    score = review.get("score")
+    if score is None:
+        score = strict_review.get("overall_score") or 0
+
+    alerts: list[dict[str, Any]] = []
+    degraded = sum(
+        1 for segments in route_segments_by_day.values()
+        for segment in segments if segment.get("status") != "REAL_ROUTE"
+    )
+    if degraded:
+        alerts.append({
+            "id": "route-degraded", "type": "degraded",
+            "text": f"{degraded} 段路线暂为估算", "actionText": "重试",
+        })
+    if score < 85:
+        issues = review.get("issues") or strict_review.get("improvement_actions") or []
+        detail = f"：{issues[0]}" if issues else ""
+        alerts.append({
+            "id": "quality", "type": "quality", "text": f"评审 {round(float(score))} 分{detail}",
+            "actionText": "看透视",
+        })
+    notes = final_plan.get("notes") or []
+    risk = next((note for note in notes if any(word in note for word in ("天气", "雨", "风险", "注意"))), None)
+    if risk:
+        alerts.append({"id": "risk", "type": "risk", "text": risk, "actionText": "查看"})
+
+    dates = [day.date for day in state.days if day.date]
+    destination = requirement.get("destination") or next((day.city for day in state.days if day.city), "行程")
+    return {
+        "trip_id": trip_id,
+        "title": f"{destination} {len(state.days)} 日游",
+        "subtitle": f"{dates[0][5:]} - {dates[-1][5:]}" if dates else "",
+        "status": values.get("stage") or "done",
+        "plan_version": state.plan_version,
+        "quality": {
+            "score": round(float(score)), "passed": bool(review.get("passed") or float(score) >= 85),
+            "issues": review.get("issues") or strict_review.get("improvement_actions") or [],
+        },
+        "days": [day.model_dump(mode="json") for day in state.days],
+        "route_segments_by_day": route_segments_by_day,
+        "alerts": alerts,
+        "conversation_history": values.get("conversation_history") or [],
+        "changes": [
+            {
+                "plan_version": entry.get("plan_version"),
+                "summary": entry.get("summary") or "行程已修改",
+                "changed_items": entry.get("changed_items") or [],
+                "can_undo": index == len(state.history) - 1,
+            }
+            for index, entry in enumerate(state.history)
+        ],
+    }
+
+
 @router.get("/trips/{trip_id}/days/{day_id}")
 def get_day(trip_id: str, day_id: str) -> dict[str, Any]:
     _ensure_workspace(trip_id)
@@ -103,7 +174,10 @@ def rollback_patch(trip_id: str, request: RollbackRequest) -> dict[str, Any]:
     _ensure_workspace(trip_id)
     try:
         state = workspace_service.rollback(trip_id, request.plan_version)
-        return {"status": "ROLLED_BACK", "plan_version": state.plan_version}
+        return {
+            "status": "ROLLED_BACK", "plan_version": state.plan_version,
+            "days": [day.model_dump(mode="json") for day in state.days],
+        }
     except Exception as exc:
         raise _translate_error(exc)
 

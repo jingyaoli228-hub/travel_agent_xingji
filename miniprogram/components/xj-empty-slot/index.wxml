@@ -1,5 +1,5 @@
-<view class="xj-es" hover-class="xj-es--hover" bindtap="onTap">
+<view class="xj-es {{interactive?'':'is-static'}}" hover-class="{{interactive?'xj-es--hover':'none'}}" bindtap="onTap">
   <text wx:if="{{time}}" class="xj-es__time">{{time}}</text>
   <text class="xj-es__l">{{label}}</text>
-  <text class="xj-es__act">{{actionText}}</text>
+  <text wx:if="{{actionText}}" class="xj-es__act">{{actionText}}</text>
 </view>

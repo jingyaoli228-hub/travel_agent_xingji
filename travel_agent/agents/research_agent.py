@@ -322,12 +322,17 @@ class ResearchOrchestratorAgent:
             opening_hours = None
             advantages: List[str] = []
             cost = _price_bucket(item.get("price_level"), _RESTAURANT_PRICE_BUCKETS_CNY, 0.0) if tag == "food" else 0.0
+            coordinates = item.get("location") or {}
             results.append(
                 TravelExperience(
                     name=item["name"],
                     type=tag,
                     category=_infer_category_label(item.get("types", [])),
                     location=item.get("address") or req.destination or "",
+                    address=item.get("address"),
+                    place_id=item.get("place_id"),
+                    latitude=coordinates.get("lat"),
+                    longitude=coordinates.get("lng"),
                     region=region,
                     rating=item.get("rating", 0.0),
                     popularity=_popularity_from_review_count(item.get("user_rating_count", 0)),

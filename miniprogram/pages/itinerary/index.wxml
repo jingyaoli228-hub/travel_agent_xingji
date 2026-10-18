@@ -1,9 +1,90 @@
-<view class="itinerary-shell">
-  <xj-nav-bar title="行迹" left-text="我的行程" placeholder></xj-nav-bar>
-  <view class="itinerary-shell__content">
-    <view class="itinerary-shell__kicker">P0 · 行程首页</view>
-    <view class="itinerary-shell__title">组件包已接入</view>
-    <view class="itinerary-shell__sub">地图、三档抽屉和当天行程将在第 2 步接入。</view>
-    <xj-button type="dark" block bind:tap="openKitDemo">查看 UI Kit 演示</xj-button>
+<view class="itinerary-page">
+  <map wx:if="{{hasTrip && !offline && !readOnly}}" class="itinerary-map"
+    latitude="{{latitude}}" longitude="{{longitude}}" scale="13"
+    markers="{{markers}}" polyline="{{polyline}}" bindmarkertap="onMarker"
+    enable-3D="{{false}}" show-location="{{false}}"></map>
+  <canvas wx:elif="{{hasTrip}}" canvas-id="offlineRouteCanvas" class="offline-canvas"></canvas>
+  <view wx:else class="empty-map"></view>
+
+  <xj-nav-bar title="{{title}}" subtitle="{{subtitle}}" left-text="我的行程"
+    bind:left="onMyTrips" bind:ready="onNavReady"></xj-nav-bar>
+
+  <view wx:if="{{hasTrip}}" class="quality-overlay" style="top:{{navH + 8}}px">
+    <xj-quality-badge score="{{score}}" status="{{qualityStatus}}" bind:tap="openInsight"></xj-quality-badge>
   </view>
+
+  <view wx:if="{{loading}}" class="loading-panel" style="top:{{navH + 24}}px">
+    <xj-skeleton type="card" rows="{{3}}"></xj-skeleton>
+  </view>
+
+  <view wx:if="{{!loading && !hasTrip}}" class="empty-panel" style="padding-top:{{navH}}px">
+    <xj-empty-state prompts="{{emptyPrompts}}" bind:prompt="onEmptyPrompt">
+      <xj-button type="primary" block bind:tap="startPlanning">开始规划</xj-button>
+    </xj-empty-state>
+  </view>
+
+  <xj-bottom-sheet wx:if="{{hasTrip}}" level="{{level}}" top-offset="{{navH}}"
+    header-height="{{offline ? 224 : 208}}" bind:change="onLevel">
+    <view slot="header" class="sheet-header">
+      <xj-day-tabs days="{{days}}" current="{{currentDay}}" bind:change="onDay"></xj-day-tabs>
+      <view class="sheet-header__summary">{{daySummary}}</view>
+      <xj-offline-bar wx:if="{{offline || readOnly}}"
+        text="{{offline ? '离线 · 显示 ' + cachedAt + ' 的版本' : '云端暂不可用 · 显示本地版本'}}"
+        sub="只读模式，联网后可修改" bind:retry="retryOnline"></xj-offline-bar>
+      <xj-alert-bar wx:else alerts="{{alerts}}" bind:action="onAlertAction"></xj-alert-bar>
+    </view>
+
+    <view wx:if="{{conversationOpen}}" class="conversation">
+      <view class="panel-title">对话记录</view>
+      <view class="panel-sub">{{title}} · 本行程</view>
+      <view wx:for="{{messages}}" wx:key="index" class="message {{item.role==='user'?'is-user':'is-agent'}}">
+        <text>{{item.content}}</text>
+      </view>
+      <view wx:if="{{changes.length}}" class="changes-title">行程改动</view>
+      <view wx:for="{{changes}}" wx:key="plan_version" class="change-card">
+        <view class="change-card__main">
+          <text class="change-card__title">{{item.summary}}</text>
+          <text class="change-card__meta">版本 {{item.plan_version}}</text>
+        </view>
+        <view class="change-card__action" data-index="{{index}}" bindtap="onViewChange">看改动</view>
+        <view wx:if="{{item.can_undo && !readOnly}}" class="change-card__action" bindtap="undoLatestChange">撤销</view>
+      </view>
+    </view>
+
+    <view wx:elif="{{qualityOpen}}" class="quality-panel">
+      <view class="quality-panel__score">{{score}}</view>
+      <view class="panel-title">行程评审</view>
+      <view class="panel-sub">{{score >= 85 ? '质量达标' : '草稿 · 仍需优化'}}</view>
+      <view wx:if="{{!qualityIssues.length}}" class="quality-panel__empty">暂无待处理问题</view>
+      <view wx:for="{{qualityIssues}}" wx:key="index" class="quality-panel__issue">{{index + 1}}. {{item}}</view>
+    </view>
+
+    <xj-node-card wx:elif="{{focusItem}}"
+      item-id="{{focusItem.item_id}}" index="{{focusItem.index}}" name="{{focusItem.displayName}}"
+      time="{{focusItem.time}}" duration="{{focusItem.durationLabel}}" meta="{{focusItem.location}}"
+      rating="{{focusItem.rating}}" locked="{{focusItem.user_locked}}" tip="{{focusItem.reason}}"
+      expanded="{{level==='full'}}" play-duration="{{focusItem.durationLabel}}" steps="{{focusItem.steps}}"
+      bind:expand="onExpandNode" bind:close="onCloseNode" bind:action="onNodeAction"></xj-node-card>
+
+    <view wx:else class="day-list">
+      <block wx:for="{{dayEntries}}" wx:key="index">
+        <xj-empty-slot wx:if="{{item.node.pendingMeal}}" time="{{item.node.time}}"
+          label="{{item.node.activity==='dinner'?'晚餐 · 待定':'午餐 · 待定'}}"
+          action-text="" interactive="{{false}}"></xj-empty-slot>
+        <xj-itinerary-card wx:else item-id="{{item.node.item_id}}" time="{{item.node.time}}"
+          duration="{{item.node.durationLabel}}" name="{{item.node.displayName}}" meta="{{item.node.meta}}"
+          locked="{{item.node.user_locked}}" rating="{{item.node.rating}}"
+          active="{{focusItem && focusItem.item_id===item.node.item_id}}" bind:tap="onCard"></xj-itinerary-card>
+        <xj-transit wx:if="{{item.transit}}" mode="{{item.transit.mode}}"
+          text="{{item.transit.text}}" estimated="{{item.transit.estimated}}"></xj-transit>
+      </block>
+    </view>
+  </xj-bottom-sheet>
+
+  <view wx:if="{{hasTrip}}" class="chat-wrap">
+    <xj-chat-bar disabled="{{readOnly}}" sending="{{sending}}"
+      placeholder="{{readOnly?'离线只读，联网后可修改':'告诉行迹：下午想轻松点…'}}"
+      bind:focus="onChatFocus" bind:send="onSend"></xj-chat-bar>
+  </view>
+  <xj-toast id="toast" bind:action="onToastAction"></xj-toast>
 </view>

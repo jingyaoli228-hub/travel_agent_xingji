@@ -96,6 +96,51 @@ class WorkspaceService:
         state = self.get(trip_id)
         return copy.deepcopy(self._find_day(state, day_id))
 
+    def ensure_geodata(self, trip_id: str) -> WorkspaceState:
+        """Backfill legacy itinerary nodes with map identity and GCJ-02 points.
+
+        New plans carry these fields from Research. This read-time migration
+        keeps older persisted plans usable without changing their plan version.
+        """
+        with self._lock:
+            state = self.get(trip_id)
+            changed = False
+            for day in state.days:
+                for item in day.items:
+                    if item.latitude is not None and item.longitude is not None:
+                        continue
+                    details: dict[str, Any] = {}
+                    if item.place_id:
+                        try:
+                            details = self.place_details(item.place_id)
+                        except PlaceRejected:
+                            details = {}
+                    if not details:
+                        query = item.name or item.location.split(" (")[0]
+                        rows = self.place_search_provider(query=query, location=day.city or item.city, limit=1)
+                        row = next((candidate for candidate in rows if candidate.get("success", True)), None)
+                        if row:
+                            point = row.get("location") or {}
+                            details = {
+                                "place_id": row.get("place_id"), "name": row.get("name"),
+                                "latitude": point.get("lat"), "longitude": point.get("lng"),
+                                "rating": row.get("rating"),
+                            }
+                    latitude, longitude = details.get("latitude"), details.get("longitude")
+                    if latitude is None or longitude is None:
+                        continue
+                    item.latitude, item.longitude = float(latitude), float(longitude)
+                    item.place_id = item.place_id or details.get("place_id")
+                    item.name = item.name or details.get("name") or item.location.split(" (")[0]
+                    item.rating = item.rating if item.rating is not None else details.get("rating")
+                    item.place_details_status = "VERIFIED"
+                    changed = True
+                if changed:
+                    state.route_segments_by_day.pop(day.day_id or f"day_{day.day_number}", None)
+            if changed:
+                self._save(state, state.plan_version)
+            return copy.deepcopy(state)
+
     def autocomplete(self, query: str, city: str, latitude: Optional[float] = None, longitude: Optional[float] = None, radius_meters: int = 20000) -> list[dict[str, Any]]:
         if not query.strip() or not city.strip():
             return []
@@ -165,7 +210,11 @@ class WorkspaceService:
             preview = {"status": "PREVIEW", "patch_id": patch_id, "updated_day_plan": day.model_dump(),
                        "updated_route_segments": [r.model_dump() for r in routes], "validation": validation,
                        "tripcraft_metrics": metrics, "changed_items": changed, "plan_version": state.plan_version}
-            state.pending_patches[patch_id] = {"day_id": day_id, "day": day.model_dump(), "routes": [r.model_dump() for r in routes], "request_id": payload["request_id"]}
+            state.pending_patches[patch_id] = {
+                "day_id": day_id, "day": day.model_dump(),
+                "routes": [r.model_dump() for r in routes],
+                "request_id": payload["request_id"], "changed_items": changed,
+            }
             self._save(state, state.plan_version)
             return preview
 
@@ -179,7 +228,12 @@ class WorkspaceService:
             if not patch:
                 raise PlaceRejected("PATCH_NOT_FOUND")
             index = next(i for i, day in enumerate(state.days) if (day.day_id or f"day_{day.day_number}") == patch["day_id"])
-            state.history.append({"plan_version": state.plan_version, "days": [d.model_dump() for d in state.days]})
+            state.history.append({
+                "plan_version": state.plan_version,
+                "days": [d.model_dump() for d in state.days],
+                "summary": "已加入地点并重算当天行程",
+                "changed_items": copy.deepcopy(patch.get("changed_items") or []),
+            })
             state.days[index] = DayPlan(**patch["day"])
             state.route_segments_by_day[patch["day_id"]] = [RouteSegment(**row) for row in patch["routes"]]
             state.plan_version += 1
@@ -195,7 +249,13 @@ class WorkspaceService:
     def rollback(self, trip_id: str, version: int) -> WorkspaceState:
         with self._lock:
             state = self._require_version(trip_id, version)
+            if not state.history:
+                raise PlaceRejected("NO_REVERSIBLE_CHANGE")
+            previous = state.history.pop()
+            state.days = [DayPlan(**day) for day in previous.get("days") or []]
+            state.route_segments_by_day.clear()
             state.pending_patches.clear()
+            state.plan_version += 1
             self._save(state, version)
             return copy.deepcopy(state)
 
@@ -271,8 +331,13 @@ class WorkspaceService:
 
     def _route_items(self, left: ItineraryItem, right: ItineraryItem) -> RouteSegment:
         mode = self._mode(right.transport)
-        key = f"route:{left.place_id or left.location}:{right.place_id or right.location}:{mode}"
-        data = self._cache.get_or_set(key, self.ROUTE_TTL, lambda: self.route_provider(origin=left.location, destination=right.location, mode=mode))
+        # AMap transit needs city metadata, which the route tool derives from
+        # named places. Other modes can use exact GCJ-02 coordinates directly.
+        use_coordinates = mode != "TRANSIT"
+        origin = f"{left.longitude},{left.latitude}" if use_coordinates and left.latitude is not None and left.longitude is not None else left.location
+        destination = f"{right.longitude},{right.latitude}" if use_coordinates and right.latitude is not None and right.longitude is not None else right.location
+        key = f"route:{left.place_id or origin}:{right.place_id or destination}:{mode}"
+        data = self._cache.get_or_set(key, self.ROUTE_TTL, lambda: self.route_provider(origin=origin, destination=destination, mode=mode))
         if not data or data.get("success") is False:
             return RouteSegment(segment_id=f"seg_{uuid4().hex[:10]}", from_item_id=left.item_id, to_item_id=right.item_id,
                 travel_mode=mode, duration_minutes=float(right.transport_duration_minutes or 0), status="FALLBACK",

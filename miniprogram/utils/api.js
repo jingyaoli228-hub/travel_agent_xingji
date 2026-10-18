@@ -10,7 +10,13 @@ function request(path, options = {}) {
       timeout: options.timeout || 60000,
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) resolve(res.data)
-        else reject(new Error((res.data && res.data.detail) || `请求失败 (${res.statusCode})`))
+        else {
+          const detail = res.data && res.data.detail
+          const error = new Error(typeof detail === "string" ? detail : (detail && detail.message) || `请求失败 (${res.statusCode})`)
+          error.statusCode = res.statusCode
+          error.detail = detail
+          reject(error)
+        }
       },
       fail(err) { reject(new Error(err.errMsg || "网络连接失败")) }
     })
@@ -49,4 +55,16 @@ function getSession(sessionId) {
   return request(`/api/session/${encodeURIComponent(sessionId)}`, { timeout: 30000 })
 }
 
-module.exports = { postChat, getResearchStatus, getSession }
+function getTripOverview(tripId) {
+  return request(`/api/trips/${encodeURIComponent(tripId)}/overview`, { timeout: 120000 })
+}
+
+function rollbackPatch(tripId, planVersion) {
+  return request(`/api/trips/${encodeURIComponent(tripId)}/rollback-patch`, {
+    method: "POST",
+    data: { plan_version: planVersion, request_id: `undo-${Date.now()}` },
+    timeout: 30000
+  })
+}
+
+module.exports = { postChat, getResearchStatus, getSession, getTripOverview, rollbackPatch }
