@@ -67,15 +67,20 @@ def readiness() -> dict:
     services = service_health() if settings.database_url else {"postgres": "disabled"}
     try:
         import redis
-        redis.Redis.from_url(settings.redis_url).ping() if settings.redis_url else None
+        client = redis.Redis.from_url(settings.redis_url) if settings.redis_url else None
+        if client:
+            try:
+                client.ping()
+            finally:
+                client.close()
         services["redis"] = "ok" if settings.redis_url else "disabled"
     except Exception as exc:
         services["redis"] = f"error:{type(exc).__name__}"
     try:
         if settings.chroma_host:
-            import chromadb
-            chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port,
-                                ssl=settings.chroma_ssl).heartbeat()
+            from travel_agent.rag.chroma_client import heartbeat
+
+            heartbeat()
             services["chroma"] = "ok"
         else:
             services["chroma"] = "embedded"

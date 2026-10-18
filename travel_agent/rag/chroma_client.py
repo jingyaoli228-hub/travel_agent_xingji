@@ -145,6 +145,16 @@ def _get_embedding_function():
     return _embedding_function_singleton
 
 
+def heartbeat() -> int:
+    """Check Chroma through the process-wide client.
+
+    Reusing the singleton matters for Docker's frequent readiness probes;
+    constructing a new ``HttpClient`` per probe leaves transports open long
+    enough to exhaust the small server's file-descriptor limit.
+    """
+    return _get_client().heartbeat()
+
+
 def get_collection(name: str, embedding_function: Optional[object] = None):
     """Get-or-create a ChromaDB collection by its configured name (see
     `config/rag.yaml: collections`). `embedding_function` is only needed to

@@ -1,7 +1,7 @@
 const api = require('../../utils/api')
 const cache = require('../../utils/trip-cache')
 const { COLOR, poiMarker, typeMarker, routeLineByMode } = require('../../utils/map-style')
-const playcards = require('../../data/beijing-top20-playcards.json')
+const playcards = require('../../data/beijing-top20-playcards')
 
 const MODE = {
   WALK: { component: 'walk', label: '步行' },

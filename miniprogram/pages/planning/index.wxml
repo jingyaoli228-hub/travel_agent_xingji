@@ -17,6 +17,16 @@
     <xj-button type="primary" block loading="{{busy}}" disabled="{{!prompt}}" bind:tap="submitIntent">发送</xj-button>
   </view>
 
+  <view wx:elif="{{phase==='clarification'}}" class="flow clarification-state">
+    <view class="clarification-card">
+      <view class="section-title">还差一点信息</view>
+      <view class="clarification-card__question">{{clarificationText}}</view>
+    </view>
+    <textarea class="prompt-box" value="{{clarificationReply}}" maxlength="300" auto-height
+      placeholder="例如：2 人，预算 6000 元" bindinput="onClarificationInput"></textarea>
+    <xj-button type="primary" block loading="{{busy}}" disabled="{{!clarificationReply}}" bind:tap="submitClarification">继续</xj-button>
+  </view>
+
   <view wx:elif="{{phase==='preferences'}}" class="flow preference-state">
     <view class="requirement-card">从你的一句话识别到：{{requirement.destination || '目的地待确认'}} · {{requirement.duration_days || 3}} 天 · {{requirement.travelers || requirement.traveler_count || '同行人数待确认'}}</view>
     <view wx:if="{{profileHint}}" class="profile-hint">{{profileHint}}</view>

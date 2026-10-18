@@ -801,7 +801,10 @@ def final_output_node(state: AgentState) -> Dict[str, Any]:
         state.get("session_id", ""), _user_id(state), episode=episode, profile_fields=profile_fields,
     )
 
-    response_lines = [f"行程规划完成！{overview}", "", "== 每日安排 =="]
+    # P0 copy rule: a draft that did not pass review must never claim that
+    # planning is complete. The UI and conversation history use the same text.
+    opening = f"行程规划完成！{overview}" if not report or report.passed else f"行程草稿已生成（质量未达标）：{overview}"
+    response_lines = [opening, "", "== 每日安排 =="]
     for day in itinerary.days:
         region_label = f"（{day.items[0].region}）" if day.items and day.items[0].region else ""
         response_lines.append(f"Day {day.day_number}{region_label}:")

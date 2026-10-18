@@ -20,5 +20,7 @@ Thumbs.db
 .claude/
 miniprogram/project.private.config.json
 data/
+!miniprogram/data/
+!miniprogram/data/*.js
 xingji-p0-trial-info.json
 xingji-p0-trial-qr.png

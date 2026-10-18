@@ -24,6 +24,7 @@ function requirementDays(requirement) {
 Page({
   data: {
     navH: 64, phase: 'input', prompt: '', busy: false,
+    clarificationText: '', clarificationReply: '',
     styles: STYLE_OPTIONS.map(label => ({ label, selected: false })),
     paces: PACE_OPTIONS.map(label => ({ label, selected: label === '适中' })),
     wakes: WAKE_OPTIONS.map(label => ({ label, selected: label === '正常' })),
@@ -45,6 +46,7 @@ Page({
   onNavReady(event) { this.setData({ navH: event.detail.totalHeight }) },
   goBack() { wx.navigateBack() },
   onPromptInput(event) { this.setData({ prompt: event.detail.value }) },
+  onClarificationInput(event) { this.setData({ clarificationReply: event.detail.value }) },
   choosePrompt(event) { this.setData({ prompt: event.currentTarget.dataset.text }) },
   onMustInput(event) { this.setData({ mustGo: event.detail.value }) },
   onAvoidInput(event) { this.setData({ avoid: event.detail.value }) },
@@ -79,18 +81,48 @@ Page({
     if (!prompt || this.data.busy) return
     const tripId = newTripId()
     const userId = wx.getStorageSync('travel-agent:user-id') || 'owner'
+    this._tripId = tripId
     this.setData({ busy: true })
     try {
       const result = await api.postChat(tripId, prompt, userId)
-      const requirement = (result.data && result.data.travel_requirement) || {}
-      const days = requirementDays(requirement)
-      this.setData({
-        busy: false, phase: 'preferences', requirement,
-        daySkeletons: Array.from({ length: days }, (_, i) => ({ day: i + 1, ready: false }))
-      })
-      this._tripId = tripId
+      this.handleRequirementResult(result)
     } catch (error) {
       this.setData({ busy: false, planningError: error.message, phase: 'error' })
+    }
+  },
+
+  handleRequirementResult(result) {
+    const data = result.data || {}
+    const requirement = data.travel_requirement || this.data.requirement || {}
+    if (['clarification', 'region_confirmation'].includes(data.stage)) {
+      this.setData({
+        busy: false,
+        phase: 'clarification',
+        requirement,
+        clarificationText: result.response || '还需要补充一点信息，才能继续规划。',
+        clarificationReply: ''
+      })
+      return
+    }
+    const days = requirementDays(requirement)
+    this.setData({
+      busy: false,
+      phase: 'preferences',
+      requirement,
+      daySkeletons: Array.from({ length: days }, (_, i) => ({ day: i + 1, ready: false }))
+    })
+  },
+
+  async submitClarification() {
+    const reply = this.data.clarificationReply.trim()
+    if (!reply || this.data.busy || !this._tripId) return
+    this.setData({ busy: true })
+    try {
+      const result = await api.postChat(this._tripId, reply, wx.getStorageSync('travel-agent:user-id') || 'owner')
+      this.handleRequirementResult(result)
+    } catch (error) {
+      this.setData({ busy: false })
+      wx.showToast({ title: error.message || '补充信息失败', icon: 'none' })
     }
   },
 
