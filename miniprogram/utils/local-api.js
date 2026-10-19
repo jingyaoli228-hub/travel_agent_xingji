@@ -186,10 +186,12 @@ function previewInsert(tripId, dayId, payload) {
     item_id: `added-${Date.now()}`, time: '16:10', activity: 'attraction', item_type: 'attraction',
     name: place.name, location: place.name, city: '北京', place_id: place.place_id,
     latitude: place.latitude, longitude: place.longitude, duration_minutes: Number(payload.preferred_duration_minutes || 60),
-    rating: place.rating, reason: '你刚刚加入的地点', user_locked: true,
+    rating: place.rating, reason: '你刚刚加入的地点', user_locked: false,
     conflict_reason: payload.force_insert ? '强制加入：当天结束时间可能偏晚' : ''
   }
-  nextDay.items.splice(Math.max(nextDay.items.length - 1, 1), 0, added)
+  const anchor = payload.insert_after_item_id
+  const anchorIndex = anchor ? nextDay.items.findIndex(item => item.item_id === anchor) + 1 : 0
+  nextDay.items.splice(Math.max(anchorIndex, 0), 0, added)
   trip.pending_patches = trip.pending_patches || {}
   trip.pending_patches[patchId] = { dayId, nextDay, addedName: place.name, snapshot: clone(day) }
   saveTrip(trip)
@@ -223,6 +225,33 @@ function rollbackPatch(tripId) {
   restored.changes = history.slice(0, -1)
   saveTrip(restored)
   return delay({ status: 'ROLLED_BACK', plan_version: restored.plan_version, days: restored.days }, 180)
+}
+
+function reorderDay(tripId, dayId, payload) {
+  const trip = readTrip(tripId)
+  const day = trip && trip.days.find(row => row.day_id === dayId)
+  if (!trip || !day) return Promise.reject(new Error('行程不存在'))
+  const byId = Object.fromEntries(day.items.map(item => [item.item_id, item]))
+  day.items = payload.ordered_item_ids.map(id => byId[id]).filter(Boolean)
+  trip.plan_version += 1; saveTrip(trip)
+  return delay({ status: 'SUCCESS', plan_version: trip.plan_version }, 100)
+}
+
+function setItemLock(tripId, dayId, itemId, payload) {
+  const trip = readTrip(tripId)
+  const day = trip && trip.days.find(row => row.day_id === dayId)
+  const item = day && day.items.find(row => row.item_id === itemId)
+  if (!item) return Promise.reject(new Error('地点不存在'))
+  item.user_locked = Boolean(payload.locked); trip.plan_version += 1; saveTrip(trip)
+  return delay({ status: 'SUCCESS', plan_version: trip.plan_version }, 80)
+}
+
+function deleteItem(tripId, dayId, itemId) {
+  const trip = readTrip(tripId)
+  const day = trip && trip.days.find(row => row.day_id === dayId)
+  if (!day) return Promise.reject(new Error('行程不存在'))
+  day.items = day.items.filter(row => row.item_id !== itemId); trip.plan_version += 1; saveTrip(trip)
+  return delay({ status: 'SUCCESS', plan_version: trip.plan_version }, 100)
 }
 
 function listTrips() {
@@ -292,6 +321,7 @@ function storeXhs(payload) {
 module.exports = {
   DEMO_TRIP_ID,
   ensureDemo, postChat, getPlanningContext, getResearchStatus, getSession, getTripOverview,
-  rollbackPatch, autocompletePlaces, previewInsert, applyPatch, listTrips, deleteTrip, copyTrip,
+  rollbackPatch, autocompletePlaces, previewInsert, applyPatch, reorderDay, setItemLock, deleteItem,
+  listTrips, deleteTrip, copyTrip,
   getTripInsight, parseXhs, storeXhs
 }

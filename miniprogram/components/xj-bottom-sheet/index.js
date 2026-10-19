@@ -8,7 +8,8 @@ Component({
     topOffset: { type: Number, value: 0 },    // px，full 时距顶（传 nav-bar 的 totalHeight）
     headerHeight: { type: Number, value: 160 },// rpx，头部估算高度（计算滚动区）
     bottomPad: { type: Number, value: 180 },  // rpx，列表底部留白（为 chat-bar 让位）
-    scrollAlways: { type: Boolean, value: false }
+    scrollAlways: { type: Boolean, value: false },
+    scrollDisabled: { type: Boolean, value: false }
   },
   data: { y: 0, fullH: 600, bodyH: 400, dragging: false },
   lifetimes: {

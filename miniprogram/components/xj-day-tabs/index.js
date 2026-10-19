@@ -6,9 +6,11 @@ Component({
   methods: {
     onTap(e) {
       const index = Number(e.currentTarget.dataset.index);
-      if (index === this.data.current) return;
-      this.setData({ current: index });
-      this.triggerEvent('change', { index });
+      if (!Number.isFinite(index)) return;
+      // Controlled component: the page owns `current`. Mutating a property
+      // internally raced the parent update on real devices and left Day 2/3
+      // visually selected but still rendering Day 1.
+      this.triggerEvent('change', { index }, { bubbles: true, composed: true });
     }
   }
 });

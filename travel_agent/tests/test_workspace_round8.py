@@ -91,6 +91,35 @@ def test_route_failure_is_explicit_fallback(service):
     assert "不代表真实路线" in routes[0].warning
 
 
+def test_route_failure_still_has_public_transport_duration(service):
+    state = service.get("trip")
+    state.days[0].items[1].transport = "公共交通 约42分钟"
+    service._states["trip"] = state
+    service.route_provider = lambda **kwargs: {"success": False, "error": "routes down"}
+    route = service.routes("trip", "day_1")[0]
+    assert route.travel_mode == "TRANSIT"
+    assert route.duration_minutes == 42
+
+
+def test_manual_unlock_reorder_and_delete_recalculate_day(service):
+    unlocked = service.set_item_lock("trip", "day_1", "a", False, 1, "unlock-a")
+    assert unlocked["plan_version"] == 2
+    reordered = service.reorder_day("trip", "day_1", ["b", "a"], 2, "reorder-day")
+    assert reordered["plan_version"] == 3
+    state = service.get("trip")
+    assert [item.item_id for item in state.days[0].items] == ["b", "a"]
+    assert state.days[0].items[1].transport_duration_minutes == 20
+    deleted = service.delete_item("trip", "day_1", "a", 3, "delete-a")
+    assert deleted["plan_version"] == 4
+    assert [item.item_id for item in service.get("trip").days[0].items] == ["b"]
+
+
+def test_insert_request_defaults_to_unlocked():
+    from travel_agent.schemas.workspace import InsertPoiRequest
+    payload = InsertPoiRequest(place_id="p", plan_version=1, request_id="r")
+    assert payload.user_locked is False
+
+
 def test_legacy_items_get_geodata_without_bumping_plan_version():
     service = WorkspaceService()
     item = activity("legacy", "09:00", "Legacy Place")

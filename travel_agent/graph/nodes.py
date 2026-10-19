@@ -327,7 +327,7 @@ def research_orchestrator_node(state: AgentState) -> Dict[str, Any]:
         selected = state.get("selected_places") or {"experiences": []}
         days = req.duration_days or 5
         daily_count = req.daily_attraction_count or 3
-        target_total = max(daily_count * days, 3) + max(days + 1, 2)
+        target_total = max(daily_count * days, 3) + max(days * 2, 2)
         # Bug fix (found while testing an unrelated change, confirmed live):
         # `result.experiences` is `existing.experiences + newly_found`, i.e.
         # the *whole* pool, not just what this expansion pass added. Passing
@@ -380,7 +380,10 @@ def research_orchestrator_node(state: AgentState) -> Dict[str, Any]:
             preferred = list(req.experience_preferences or []) + [
                 _INTEREST_PREFERRED_TYPES[i] for i in (req.interests or []) if i in _INTEREST_PREFERRED_TYPES
             ]
-            selected = _research_agent.auto_select(candidates, daily_count, days, preferred_types=preferred)
+            selected = _research_agent.auto_select(
+                candidates, daily_count, days, preferred_types=preferred,
+                required_names=req.requested_places,
+            )
             update["candidates"] = candidates
             update["selected_places"] = selected
             update["research_mode"] = "feedback_auto_select"
@@ -503,9 +506,15 @@ def user_selection_node(state: AgentState) -> Dict[str, Any]:
         _INTEREST_PREFERRED_TYPES[i] for i in (req.interests or []) if i in _INTEREST_PREFERRED_TYPES
     ]
     if is_auto:
-        selected = _research_agent.auto_select(candidates, daily_count, days, preferred_types=preferred)
+        selected = _research_agent.auto_select(
+            candidates, daily_count, days, preferred_types=preferred,
+            required_names=req.requested_places,
+        )
     elif is_removal:
-        base = _research_agent.auto_select(candidates, daily_count, days, preferred_types=preferred)
+        base = _research_agent.auto_select(
+            candidates, daily_count, days, preferred_types=preferred,
+            required_names=req.requested_places,
+        )
         removed_names = {i["name"] for i in mentioned}
         selected = {"experiences": [e for e in base["experiences"] if e["name"] not in removed_names]}
     else:

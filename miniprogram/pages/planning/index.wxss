@@ -1,6 +1,9 @@
 @import "../../styles/tokens.wxss";
 @import "../../styles/icons.wxss";
 
+.candidate__body{flex:1;min-width:0;padding-right:var(--xj-space-2)}
+.candidate__desc{display:block;margin-top:var(--xj-space-2);color:var(--xj-text2);font-size:var(--xj-font-sm);line-height:1.55}
+
 .clarification-card{padding:var(--xj-space-4);margin-bottom:var(--xj-space-3);border:2rpx solid var(--xj-line);border-radius:var(--xj-radius-md);background:var(--xj-card)}
 .clarification-card .section-title{margin-top:0}
 .clarification-card__question{color:var(--xj-text2);font-size:var(--xj-font-sm);line-height:1.7;white-space:pre-wrap}

@@ -119,7 +119,7 @@ class PlannerAgent:
         non_food = [e for e in selected_experiences if e.get("type") != "food"]
         food = [e for e in selected_experiences if e.get("type") == "food"]
         target_non_food = max(daily_count * days, 3)
-        target_food = max(days + 1, 2)
+        target_food = max(days * 2, 2)
 
         missing_categories: List[str] = []
         if len(non_food) < target_non_food:
@@ -203,7 +203,7 @@ class PlannerAgent:
 
         items.append(
             ItineraryItem(
-                time=_minutes_to_hhmm(t), activity="breakfast", location="酒店/附近早餐店", transport="步行",
+                time=_minutes_to_hhmm(t), activity="breakfast", location=f"酒店/附近早餐店（第{day_number}天）", transport="步行",
                 duration_minutes=45, estimated_cost=40 * num_travelers, reason="在酒店附近简单用早餐，为一天行程做准备。",
             )
         )
@@ -221,6 +221,7 @@ class PlannerAgent:
                 ItineraryItem(
                     time=_minutes_to_hhmm(t), activity="attraction", location=f"{e['name']} ({e['location']})",
                     transport=f"{route['label']} 约{route['duration_minutes']}分钟",
+                    transport_duration_minutes=route["duration_minutes"],
                     duration_minutes=e.get("duration_minutes", 90), estimated_cost=(e.get("cost") or 0) * num_travelers,
                     reason="；".join(e.get("advantages", [])[:2]) or f"符合您的兴趣偏好（{e.get('type', '')}）。",
                     region=e.get("region") or region,
@@ -232,7 +233,7 @@ class PlannerAgent:
         for _ in range(morning_n):
             t, current_location = _add_experience(t, current_location)
 
-        lunch_t = max(t, 12 * 60)
+        lunch_t = max(t, wake + 4 * 60, 12 * 60)
         meal = self._next_from_pools(food_pool, food_fallback) or {
             "name": "当地特色餐厅", "cost": 100, "location": requirement.destination, "type": "food",
         }
@@ -241,6 +242,7 @@ class PlannerAgent:
             ItineraryItem(
                 time=_minutes_to_hhmm(lunch_t), activity="lunch", location=meal["name"],
                 transport=f"{route['label']} 约{route['duration_minutes']}分钟", duration_minutes=75,
+                transport_duration_minutes=route["duration_minutes"],
                 estimated_cost=(meal.get("cost") or 100) * num_travelers,
                 reason="；".join(meal.get("advantages", [])[:2]) or "当地推荐餐厅。",
                 **_place_fields(meal),
@@ -252,7 +254,7 @@ class PlannerAgent:
         for _ in range(afternoon_n):
             t, current_location = _add_experience(t, current_location)
 
-        dinner_t = max(t, 18 * 60)
+        dinner_t = max(t, lunch_t + 4 * 60, 18 * 60)
         meal = self._next_from_pools(food_pool, food_fallback) or {
             "name": "当地特色餐厅", "cost": 100, "location": requirement.destination, "type": "food",
         }
@@ -261,6 +263,7 @@ class PlannerAgent:
             ItineraryItem(
                 time=_minutes_to_hhmm(dinner_t), activity="dinner", location=meal["name"],
                 transport=f"{route['label']} 约{route['duration_minutes']}分钟", duration_minutes=90,
+                transport_duration_minutes=route["duration_minutes"],
                 estimated_cost=(meal.get("cost") or 100) * num_travelers,
                 reason="；".join(meal.get("advantages", [])[:2]) or "当地推荐餐厅，结束一天行程。",
                 **_place_fields(meal),

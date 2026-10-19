@@ -31,11 +31,11 @@
     <view class="requirement-card">从你的一句话识别到：{{requirement.destination || '目的地待确认'}} · {{requirement.duration_days || 3}} 天 · {{requirement.travelers || requirement.traveler_count || '同行人数待确认'}}</view>
     <view wx:if="{{profileHint}}" class="profile-hint">{{profileHint}}</view>
     <view class="section-title">兴趣（可多选）</view>
-    <view class="option-row"><xj-chip wx:for="{{styles}}" wx:key="label" label="{{item.label}}" status="{{item.selected?'selected':'default'}}" data-key="styles" data-index="{{index}}" bind:tap="toggleOption"></xj-chip></view>
+    <view class="option-row"><xj-chip wx:for="{{styles}}" wx:key="label" label="{{item.label}}" value="{{index}}" status="{{item.selected?'selected':'default'}}" bind:tap="toggleStyle"></xj-chip></view>
     <view class="section-title">节奏</view>
-    <view class="option-row"><xj-chip wx:for="{{paces}}" wx:key="label" label="{{item.label}}" status="{{item.selected?'selected':'default'}}" data-key="paces" data-index="{{index}}" bind:tap="toggleOption"></xj-chip></view>
+    <view class="option-row"><xj-chip wx:for="{{paces}}" wx:key="label" label="{{item.label}}" value="{{index}}" status="{{item.selected?'selected':'default'}}" bind:tap="choosePace"></xj-chip></view>
     <view class="section-title">作息</view>
-    <view class="option-row"><xj-chip wx:for="{{wakes}}" wx:key="label" label="{{item.label}}" status="{{item.selected?'selected':'default'}}" data-key="wakes" data-index="{{index}}" bind:tap="toggleOption"></xj-chip></view>
+    <view class="option-row"><xj-chip wx:for="{{wakes}}" wx:key="label" label="{{item.label}}" value="{{index}}" status="{{item.selected?'selected':'default'}}" bind:tap="chooseWake"></xj-chip></view>
     <view class="section-title">必去 <text>每次都问</text></view>
     <input class="line-input" value="{{mustGo}}" placeholder="输入本次一定要去的地点，没有可留空" bindinput="onMustInput" />
     <view class="section-title">不想去 <text>每次都问</text></view>
@@ -58,15 +58,15 @@
   </view>
 
   <view wx:elif="{{phase==='selection'}}" class="flow selection-state">
-    <view class="capacity">已选 {{selectedCount}} 个，{{requirement.duration_days || 3}} 天大约能排 {{capacity}} 个</view>
+    <view class="capacity">已选 {{selectedCount}} 个，{{requirement.duration_days || 3}} 天约安排 {{capacity}} 个景点与正餐节点</view>
     <view wx:if="{{overflow>0}}" class="overflow">超出约 {{overflow}} 个；确认后多出的按评分进入当天候补，不会丢失</view>
     <view class="section-title">必去 · 永不折叠</view>
     <view wx:for="{{candidates}}" wx:key="name" wx:if="{{item.choice==='must'}}" class="candidate" data-index="{{index}}" bindtap="cycleChoice">
-      <view><text class="candidate__name">{{item.name}}</text><text class="candidate__meta">{{item.type || item.group}} · {{item.rating || '待评分'}}</text></view><text class="choice choice--{{item.choice}}">必去</text>
+      <view class="candidate__body"><text class="candidate__name">{{item.name}}</text><text class="candidate__meta">{{item.type || item.group}} · {{item.rating || '待评分'}}</text><text wx:if="{{item.short_description}}" class="candidate__desc">{{item.short_description}}</text></view><text class="choice choice--{{item.choice}}">必去</text>
     </view>
     <view class="section-title">候选地点 · 点按切换档位</view>
     <view wx:for="{{candidates}}" wx:key="name" wx:if="{{item.choice!=='must'}}" class="candidate" data-index="{{index}}" bindtap="cycleChoice">
-      <view><text class="candidate__name">{{item.name}}</text><text class="candidate__meta">{{item.type || item.group}} · {{item.rating || '待评分'}}</text></view><text class="choice choice--{{item.choice}}">{{item.choice==='want'?'想去':item.choice==='optional'?'可选':'排除'}}</text>
+      <view class="candidate__body"><text class="candidate__name">{{item.name}}</text><text class="candidate__meta">{{item.type || item.group}} · {{item.rating || '待评分'}}</text><text wx:if="{{item.short_description}}" class="candidate__desc">{{item.short_description}}</text></view><text class="choice choice--{{item.choice}}">{{item.choice==='want'?'想去':item.choice==='optional'?'可选':'排除'}}</text>
     </view>
     <view class="dual-actions"><xj-button type="primary" data-mode="recommended" bind:tap="submitSelection">按建议处理</xj-button><xj-button type="secondary" data-mode="mine" bind:tap="submitSelection">按我选的出草稿</xj-button></view>
   </view>

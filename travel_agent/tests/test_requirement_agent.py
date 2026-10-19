@@ -82,6 +82,21 @@ def test_parse_region_selection_named_regions(no_llm):
     assert set(selected) == {"Canggu", "Ubud"}
 
 
+def test_preference_turn_extracts_requested_and_excluded_places(no_llm):
+    agent = RequirementAgent()
+    result = agent.run("兴趣：美食、摄影；节奏：松弛；必去：大熊猫、春熙路和太古里；不想去：宽窄巷子。")
+    assert result.requirement.requested_places == ["大熊猫", "春熙路", "太古里"]
+    assert result.requirement.excluded_places == ["宽窄巷子"]
+    assert "美食" in result.requirement.interests
+    assert "摄影" in result.requirement.interests
+
+
+def test_chengdu_is_city_research_not_user_region_split(no_llm):
+    assessment = RequirementAgent().assess_destination_complexity(TravelRequirement(destination="成都"))
+    assert assessment.is_complex is False
+    assert assessment.regions == []
+
+
 class _FakeLLM:
     """Minimal stand-in for a `ChatOpenAI` client exposing only `.invoke()`,
     used to exercise the Stage-4 incremental-patch LLM path (`no_llm` forces
@@ -143,6 +158,8 @@ def test_llm_patch_merge_normalizes_english_pace_synonym(monkeypatch):
     agent = RequirementAgent()
     result = agent.run("节奏松一点")
     assert result.requirement.pace == "松弛"
+    assert result.requirement.daily_attraction_count == 2
+    assert result.requirement.wake_up_time == "08:30"
 
 
 def test_llm_patch_merge_drops_unrecognized_pace_value(monkeypatch):

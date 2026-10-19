@@ -59,6 +59,13 @@
   gap: var(--xj-space-2);
 }
 
+.sort-hint { padding: var(--xj-space-2); border-radius: var(--xj-radius-sm); background: var(--xj-primary-light); color: var(--xj-primary); font-size: var(--xj-font-mini); }
+.timeline-row { transition: transform .16s, opacity .16s; }
+.timeline-row.is-dragging { opacity: .72; transform: scale(.99); }
+.timeline-card-row { display: flex; align-items: stretch; gap: var(--xj-space-2); }
+.timeline-card-main { flex: 1; min-width: 0; }
+.drag-handle { display: flex; width: var(--xj-space-5); align-items: center; justify-content: center; border-radius: var(--xj-radius-sm); color: var(--xj-text3); font-size: var(--xj-font-h3); letter-spacing: -8rpx; }
+
 .chat-wrap {
   position: fixed;
   right: var(--xj-space-3);

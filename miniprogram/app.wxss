@@ -27,3 +27,12 @@ button::after { border: 0; }
   font-size: var(--xj-font-mini);
   font-weight: var(--xj-weight-bold);
 }
+
+/* Add-place insertion slots are page content, styled globally so the
+ * single-line generated page stylesheet does not need hard-coded values. */
+.slot-title { margin: var(--xj-space-4) 0 var(--xj-space-2); color: var(--xj-text); font-size: var(--xj-font-body); font-weight: var(--xj-weight-bold); }
+.slot-list { display: flex; flex-direction: column; gap: var(--xj-space-2); }
+.slot { display: flex; flex-direction: column; gap: var(--xj-space-1); padding: var(--xj-space-3); border: 2rpx solid var(--xj-line); border-radius: var(--xj-radius-md); background: var(--xj-card); font-size: var(--xj-font-sm); }
+.slot text:last-child { color: var(--xj-text3); font-size: var(--xj-font-mini); }
+.slot.is-on { border-color: var(--xj-primary); background: var(--xj-primary-light); color: var(--xj-primary); }
+.selected-slot { padding: var(--xj-space-2); border-radius: var(--xj-radius-sm); background: var(--xj-primary-light); color: var(--xj-primary) !important; font-size: var(--xj-font-sm); }

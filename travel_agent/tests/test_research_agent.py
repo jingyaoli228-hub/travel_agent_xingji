@@ -6,7 +6,9 @@ the deterministic/heuristic paths.
 """
 
 from travel_agent.agents.research_agent import ResearchOrchestratorAgent
+from travel_agent.schemas.common import Source
 from travel_agent.schemas.destination import RegionCandidate
+from travel_agent.schemas.experience import TravelExperience
 from travel_agent.schemas.travel_requirement import TravelRequirement
 
 
@@ -90,6 +92,40 @@ def test_auto_select_prefers_user_types_covers_regions_and_avoids_cafes(no_llm):
     assert "慕田峪长城" in names
     assert "星海钢琴商城" not in names
     assert names.index("老北京涮肉") < names.index("出走咖啡")
+
+
+def test_auto_select_keeps_every_explicit_requested_place(no_llm):
+    agent = ResearchOrchestratorAgent()
+    candidates = {"experiences": {
+        "landmark": [
+            {"name": "成都大熊猫繁育研究基地", "popularity": 1, "rating": 4.1},
+            {"name": "春熙路", "popularity": 1, "rating": 4.0},
+            {"name": "成都远望塔", "popularity": 99, "rating": 5.0},
+        ],
+        "local_life": [{"name": "成都太古里", "popularity": 1, "rating": 4.0}],
+        "food": [{"name": "成都小吃", "popularity": 1, "rating": 4.0}],
+    }}
+    selected = agent.auto_select(
+        candidates, daily_count=2, days=2,
+        required_names=["大熊猫", "春熙路", "太古里"],
+    )["experiences"]
+    names = [item["name"] for item in selected]
+    assert "成都大熊猫繁育研究基地" in names
+    assert "春熙路" in names
+    assert "成都太古里" in names
+
+
+def test_requested_place_family_keeps_one_real_panda_destination(no_llm):
+    agent = ResearchOrchestratorAgent()
+    req = TravelRequirement(destination="成都", requested_places=["大熊猫"])
+    source = Source(title="amap", url="https://www.amap.com", source_type="amap")
+    rows = [
+        TravelExperience(name="成都大熊猫繁育研究基地", type="landmark", location="成都", source=source),
+        TravelExperience(name="熊猫基地旅游服务中心", type="local_life", location="成都", source=source),
+        TravelExperience(name="大熊猫4号别墅", type="landmark", location="成都", source=source),
+    ]
+    deduped = agent._dedupe_candidate_pool(rows, req)
+    assert [item.name for item in deduped] == ["成都大熊猫繁育研究基地"]
 
 
 def test_parse_feedback_intent_niche_architecture(no_llm):

@@ -214,7 +214,7 @@ class WorkspaceService:
                 location=details["name"], duration_minutes=duration, planned_duration_hours=duration / 60,
                 estimated_cost=float(details.get("estimated_cost") or 0), reason="用户手动添加",
                 city=day.city, latitude=details.get("latitude"), longitude=details.get("longitude"),
-                primary_category=details.get("primary_category"), user_locked=bool(payload.get("user_locked", True)),
+                primary_category=details.get("primary_category"), user_locked=bool(payload.get("user_locked", False)),
                 source="user_added", place_details_status="VERIFIED", conflict_reason=conflict_reason,
             )
             day.items.insert(index, added)
@@ -276,6 +276,98 @@ class WorkspaceService:
             state.mutation_results[request_id] = result
             self._save(state, version)
             return result
+
+    def reorder_day(
+        self, trip_id: str, day_id: str, ordered_item_ids: list[str], version: int, request_id: str,
+    ) -> dict[str, Any]:
+        with self._lock:
+            current = self.get(trip_id)
+            if request_id in current.mutation_results:
+                return copy.deepcopy(current.mutation_results[request_id])
+            state = self._require_version(trip_id, version)
+            day = self._find_day(state, day_id)
+            existing_ids = [item.item_id for item in day.items]
+            if len(ordered_item_ids) != len(set(ordered_item_ids)) or set(ordered_item_ids) != set(existing_ids):
+                raise PlaceRejected("REORDER_ITEMS_MISMATCH")
+            old_index = {item_id: index for index, item_id in enumerate(existing_ids)}
+            new_index = {item_id: index for index, item_id in enumerate(ordered_item_ids)}
+            moved_locked = [item.name or item.location for item in day.items if item.user_locked and old_index[item.item_id] != new_index[item.item_id]]
+            if moved_locked:
+                raise PlaceRejected(f"请先解锁再排序：{'、'.join(moved_locked)}")
+            if ordered_item_ids == existing_ids:
+                return {"status": "SUCCESS", "plan_version": state.plan_version, "idempotent": True}
+
+            self._append_history(state, "已手动调整当天地点顺序", [
+                {"action": "REORDER", "day_id": day_id, "ordered_item_ids": ordered_item_ids}
+            ])
+            by_id = {item.item_id: item for item in day.items}
+            day.items = [by_id[item_id] for item_id in ordered_item_ids]
+            routes = self._reschedule_day(day)
+            state.route_segments_by_day[day_id] = routes
+            state.plan_version += 1
+            state.applied_request_ids.append(request_id)
+            result = {
+                "status": "SUCCESS", "plan_version": state.plan_version,
+                "updated_day_plan": day.model_dump(),
+                "updated_route_segments": [route.model_dump() for route in routes],
+            }
+            state.mutation_results[request_id] = result
+            self._save(state, version)
+            return copy.deepcopy(result)
+
+    def set_item_lock(
+        self, trip_id: str, day_id: str, item_id: str, locked: bool, version: int, request_id: str,
+    ) -> dict[str, Any]:
+        with self._lock:
+            current = self.get(trip_id)
+            if request_id in current.mutation_results:
+                return copy.deepcopy(current.mutation_results[request_id])
+            state = self._require_version(trip_id, version)
+            day = self._find_day(state, day_id)
+            item = next((row for row in day.items if row.item_id == item_id), None)
+            if item is None:
+                raise PlaceRejected("ITEM_NOT_FOUND")
+            if item.user_locked == locked:
+                return {"status": "SUCCESS", "plan_version": state.plan_version, "idempotent": True}
+            self._append_history(state, f"已{'锁定' if locked else '解锁'}「{item.name or item.location}」", [{
+                "action": "LOCK" if locked else "UNLOCK", "item_id": item_id,
+            }])
+            item.user_locked = locked
+            state.plan_version += 1
+            state.applied_request_ids.append(request_id)
+            result = {"status": "SUCCESS", "plan_version": state.plan_version, "item": item.model_dump()}
+            state.mutation_results[request_id] = result
+            self._save(state, version)
+            return copy.deepcopy(result)
+
+    def delete_item(self, trip_id: str, day_id: str, item_id: str, version: int, request_id: str) -> dict[str, Any]:
+        with self._lock:
+            current = self.get(trip_id)
+            if request_id in current.mutation_results:
+                return copy.deepcopy(current.mutation_results[request_id])
+            state = self._require_version(trip_id, version)
+            day = self._find_day(state, day_id)
+            item = next((row for row in day.items if row.item_id == item_id), None)
+            if item is None:
+                raise PlaceRejected("ITEM_NOT_FOUND")
+            if item.user_locked:
+                raise PlaceRejected("该地点已锁定，请先解锁再删除")
+            self._append_history(state, f"已删除「{item.name or item.location}」", [{
+                "action": "DELETE", "item_id": item_id, "name": item.name or item.location,
+            }])
+            day.items = [row for row in day.items if row.item_id != item_id]
+            routes = self._reschedule_day(day)
+            state.route_segments_by_day[day_id] = routes
+            state.plan_version += 1
+            state.applied_request_ids.append(request_id)
+            result = {
+                "status": "SUCCESS", "plan_version": state.plan_version,
+                "updated_day_plan": day.model_dump(),
+                "updated_route_segments": [route.model_dump() for route in routes],
+            }
+            state.mutation_results[request_id] = result
+            self._save(state, version)
+            return copy.deepcopy(result)
 
     def rollback(self, trip_id: str, version: int) -> WorkspaceState:
         with self._lock:
@@ -370,8 +462,14 @@ class WorkspaceService:
         key = f"route:{left.place_id or origin}:{right.place_id or destination}:{mode}"
         data = self._cache.get_or_set(key, self.ROUTE_TTL, lambda: self.route_provider(origin=origin, destination=destination, mode=mode))
         if not data or data.get("success") is False:
+            match = re.search(r"(?:约|大约)?\s*(\d+)\s*分钟", right.transport or "")
+            fallback_minutes = float(
+                right.transport_duration_minutes
+                or (int(match.group(1)) if match else 0)
+                or {"WALK": 15, "DRIVE": 25, "BICYCLE": 20, "TRANSIT": 30}.get(mode, 30)
+            )
             return RouteSegment(segment_id=f"seg_{uuid4().hex[:10]}", from_item_id=left.item_id, to_item_id=right.item_id,
-                travel_mode=mode, duration_minutes=float(right.transport_duration_minutes or 0), status="FALLBACK",
+                travel_mode=mode, duration_minutes=fallback_minutes, status="FALLBACK",
                 warning="路线数据暂不可用；虚线仅作视觉提示，不代表真实路线")
         return RouteSegment(segment_id=f"seg_{uuid4().hex[:10]}", from_item_id=left.item_id, to_item_id=right.item_id,
             travel_mode=mode, duration_minutes=float(data.get("duration_minutes") or 0),
@@ -389,6 +487,31 @@ class WorkspaceService:
         source = ItineraryItem(time="00:00", activity="attraction", location=details["name"], duration_minutes=1,
             reason="route source", place_id=place_id)
         return self._route_items(source, following)
+
+    def _append_history(self, state: WorkspaceState, summary: str, changed_items: list[dict[str, Any]]) -> None:
+        state.history.append({
+            "plan_version": state.plan_version,
+            "days": [day.model_dump() for day in state.days],
+            "summary": summary,
+            "changed_items": copy.deepcopy(changed_items),
+        })
+
+    def _reschedule_day(self, day: DayPlan) -> list[RouteSegment]:
+        """Recalculate route durations and downstream start times after a manual edit."""
+        routes = self._routes_for_day(day)
+        if not day.items:
+            return routes
+        cursor = self._hhmm(day.items[0].time) or 9 * 60
+        day.items[0].time = self._format_minutes(cursor)
+        mode_labels = {"WALK": "步行", "TRANSIT": "公共交通", "DRIVE": "驾车", "BICYCLE": "骑行", "FERRY": "轮渡", "FLIGHT": "飞机"}
+        for index, item in enumerate(day.items[1:], start=1):
+            previous = day.items[index - 1]
+            route = routes[index - 1]
+            cursor = (self._hhmm(previous.time) or cursor) + previous.duration_minutes + round(route.duration_minutes)
+            item.time = self._format_minutes(cursor)
+            item.transport_duration_minutes = round(route.duration_minutes)
+            item.transport = f"{mode_labels.get(route.travel_mode, route.travel_mode)} 约{round(route.duration_minutes)}分钟"
+        return routes
 
     @staticmethod
     def _lock_hotel_nodes(state: WorkspaceState, city: str, hotel: HotelCandidate) -> None:

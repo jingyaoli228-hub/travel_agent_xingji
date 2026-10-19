@@ -46,7 +46,7 @@ Page({
     title: '行迹', subtitle: '', planVersion: 0, level: 'peek',
     offline: false, readOnly: false, cachedAt: '',
     score: 0, qualityStatus: 'draft', qualityIssues: [], alerts: [],
-    days: [], currentDay: 0, dayEntries: [], daySummary: '',
+    days: [], currentDay: 0, dayEntries: [], daySummary: '', sorting: false, dragIndex: -1,
     markers: [], polyline: [], latitude: 39.9042, longitude: 116.4074,
     focusItem: null, conversationOpen: false, qualityOpen: false,
     messages: [], changes: [], emptyPrompts: [
@@ -168,7 +168,12 @@ Page({
     const items = day.items || []
     const entries = items.map((item, itemIndex) => {
       const route = routeByFrom[item.item_id] || routes[itemIndex]
-      const mode = MODE[(route && route.travel_mode) || 'TRANSIT'] || MODE.TRANSIT
+      const next = items[itemIndex + 1]
+      const transportText = (next && next.transport) || ''
+      const inferredMode = /步行/.test(transportText) ? 'WALK' : /驾车|打车|出租/.test(transportText) ? 'DRIVE' : /骑行|自行车/.test(transportText) ? 'BICYCLE' : 'TRANSIT'
+      const mode = MODE[(route && route.travel_mode) || inferredMode] || MODE.TRANSIT
+      const textDuration = Number((transportText.match(/(?:约|大约)?\s*(\d+)\s*分钟/) || [])[1] || 0)
+      const duration = Number((route && route.duration_minutes) || (next && next.transport_duration_minutes) || textDuration || 0)
       return {
         node: Object.assign({}, item, {
           displayName: cleanName(item),
@@ -176,12 +181,13 @@ Page({
           pendingMeal: isPendingMeal(item),
           meta: item.reason || item.location || '',
           index: itemIndex + 1,
-          conflictReason: item.conflict_reason || ''
+          conflictReason: item.conflict_reason || '',
+          draggable: Boolean(item.place_id) && !item.user_locked && !['hotel', 'return_to_hotel'].includes(item.activity)
         }),
-        transit: route ? {
+        transit: (route || duration) && next ? {
           mode: mode.component,
-          text: `${mode.label}${route.duration_minutes ? ` ${Math.round(route.duration_minutes)} 分钟` : ''}`,
-          estimated: route.status !== 'REAL_ROUTE'
+          text: `${mode.label} ${Math.round(duration || 30)} 分钟`,
+          estimated: !route || route.status !== 'REAL_ROUTE'
         } : null
       }
     })
@@ -228,7 +234,7 @@ Page({
     }, () => { if (this.data.offline || this.data.readOnly) setTimeout(() => this.drawOfflineRoute(), 30) })
   },
 
-  onDay(event) { this.renderDay(event.detail.index) },
+  onDay(event) { this.renderDay(Number(event.detail.index)) },
   onLevel(event) { this.setData({ level: event.detail.level }) },
   onMarker(event) { this.focusById(this._markerToItem && this._markerToItem[event.detail.markerId]) },
   onCard(event) { this.focusById(event.detail.id) },
@@ -250,9 +256,84 @@ Page({
 
   onCloseNode() { this.setData({ focusItem: null }) },
   onExpandNode(event) { this.setData({ level: event.detail.expanded ? 'full' : 'half' }) },
-  onNodeAction(event) {
-    if (event.detail.act === 'lock') wx.showToast({ title: '已记录锁定意图，可通过对话修改', icon: 'none' })
-    else wx.showToast({ title: '请在对话栏描述这次修改', icon: 'none' })
+  async onNodeAction(event) {
+    if (this.data.readOnly) return
+    const day = this.data.days[this.data.currentDay]
+    const entry = this.data.dayEntries.find(row => row.node.item_id === event.detail.id)
+    if (!day || !entry) return
+    if (event.detail.act === 'lock') {
+      try {
+        await api.setItemLock(this.data.tripId, day.dayId, entry.node.item_id, {
+          locked: !entry.node.user_locked, plan_version: this.data.planVersion, request_id: `lock-${Date.now()}`
+        })
+        await this.loadOverview({ silent: true })
+        wx.showToast({ title: entry.node.user_locked ? '已解锁，可拖动或删除' : '已锁定', icon: 'none' })
+      } catch (error) { wx.showToast({ title: error.message || '操作失败', icon: 'none' }) }
+      return
+    }
+    if (event.detail.act === 'delete') {
+      const confirmed = await new Promise(resolve => wx.showModal({
+        title: '删除这个地点？', content: entry.node.displayName,
+        confirmText: '删除', confirmColor: '#B42318', success: result => resolve(result.confirm)
+      }))
+      if (!confirmed) return
+      try {
+        await api.deleteItem(this.data.tripId, day.dayId, entry.node.item_id, {
+          plan_version: this.data.planVersion, request_id: `delete-${Date.now()}`
+        })
+        await this.loadOverview({ silent: true })
+        this.selectComponent('#toast').show({ text: '已删除并重算当天路线', payload: { undo: true } })
+      } catch (error) { wx.showToast({ title: error.message || '删除失败', icon: 'none' }) }
+      return
+    }
+    this.openAddPlace({ detail: { name: entry.node.displayName } })
+  },
+
+  startReorder(event) {
+    if (this.data.readOnly || this.data.sorting) return
+    const index = Number(event.currentTarget.dataset.index)
+    const entry = this.data.dayEntries[index]
+    if (!entry || !entry.node.draggable) {
+      wx.showToast({ title: entry && entry.node.user_locked ? '请先解锁再排序' : '这个节点不能拖动', icon: 'none' })
+      return
+    }
+    this._dragOriginal = this.data.dayEntries.slice()
+    this.createSelectorQuery().selectAll('.timeline-row').boundingClientRect(rects => { this._dragRects = rects || [] }).exec()
+    this.setData({ sorting: true, dragIndex: index })
+    wx.vibrateShort({ type: 'light' })
+  },
+
+  moveReorder(event) {
+    if (!this.data.sorting || !this._dragRects || !event.touches || !event.touches[0]) return
+    const y = event.touches[0].clientY
+    let target = this._dragRects.findIndex(rect => y < rect.top + rect.height / 2)
+    if (target < 0) target = this._dragRects.length - 1
+    if (target === this.data.dragIndex || target < 0) return
+    const entries = this.data.dayEntries.slice()
+    const moved = entries.splice(this.data.dragIndex, 1)[0]
+    entries.splice(target, 0, moved)
+    this.setData({ dayEntries: entries, dragIndex: target })
+  },
+
+  async endReorder() {
+    if (!this.data.sorting) return
+    const original = this._dragOriginal || []
+    const entries = this.data.dayEntries.slice()
+    const changed = entries.some((row, index) => !original[index] || row.node.item_id !== original[index].node.item_id)
+    this.setData({ sorting: false, dragIndex: -1 })
+    if (!changed) return
+    const day = this.data.days[this.data.currentDay]
+    try {
+      await api.reorderDay(this.data.tripId, day.dayId, {
+        ordered_item_ids: entries.map(row => row.node.item_id),
+        plan_version: this.data.planVersion, request_id: `reorder-${Date.now()}`
+      })
+      await this.loadOverview({ silent: true })
+      this.selectComponent('#toast').show({ text: '顺序和当天交通已重算', payload: { undo: true } })
+    } catch (error) {
+      this.setData({ dayEntries: original })
+      wx.showToast({ title: error.message || '排序失败', icon: 'none' })
+    }
   },
 
   openAddPlace(event) {

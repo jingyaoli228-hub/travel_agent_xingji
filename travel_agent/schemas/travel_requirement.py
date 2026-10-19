@@ -61,6 +61,14 @@ class TravelRequirement(BaseModel):
 
     pace: Optional[str] = Field(default=None, description="旅行节奏：特种兵/平衡/松弛")
     interests: List[str] = Field(default_factory=list, description="兴趣偏好列表")
+    requested_places: List[str] = Field(
+        default_factory=list,
+        description="本次用户明确要求覆盖的地点；研究与选点阶段必须逐项处理",
+    )
+    excluded_places: List[str] = Field(
+        default_factory=list,
+        description="本次用户明确不想去的地点；研究、选点与规划阶段均需排除",
+    )
 
     daily_attraction_count: Optional[int] = Field(default=None, description="每日希望景点数量")
     wake_up_time: Optional[str] = Field(default=None, description="起床时间 HH:MM")

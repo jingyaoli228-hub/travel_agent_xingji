@@ -41,6 +41,16 @@ _KNOWN_COMPLEX_DESTINATIONS: Dict[str, List[Dict[str, Any]]] = {
 _KNOWN_COMPLEX_DESTINATIONS["巴厘"] = _KNOWN_COMPLEX_DESTINATIONS["巴厘岛"]
 _KNOWN_COMPLEX_DESTINATIONS["bali"] = _KNOWN_COMPLEX_DESTINATIONS["巴厘岛"]
 
+# A city can contain many neighbourhoods without requiring the user to make
+# a region-split decision.  These ordinary city trips are researched across
+# several areas by ResearchOrchestratorAgent instead.  Treating Chengdu as a
+# Bali-style multi-base destination caused POI names such as “大熊猫” and
+# “春熙路” to be parsed as regions and multiplied near-duplicate searches.
+_ORDINARY_CITY_DESTINATIONS = {
+    "北京", "上海", "广州", "深圳", "成都", "杭州", "西安", "重庆", "南京",
+    "苏州", "厦门", "长沙", "武汉", "青岛", "天津", "昆明", "大理", "三亚",
+}
+
 
 class DestinationIntelligenceService:
     def assess_region_split(
@@ -49,6 +59,9 @@ class DestinationIntelligenceService:
         """Decide whether `destination` should be offered a region split."""
         destination = (destination or "").strip()
         if not destination:
+            return DestinationComplexityAssessment(destination=destination, is_complex=False)
+
+        if destination.rstrip("市") in _ORDINARY_CITY_DESTINATIONS:
             return DestinationComplexityAssessment(destination=destination, is_complex=False)
 
         regions_data = self._lookup_known_regions(destination)

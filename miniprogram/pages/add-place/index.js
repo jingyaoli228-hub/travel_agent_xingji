@@ -1,7 +1,11 @@
 const api = require('../../utils/api')
 
 Page({
-  data: { navH: 64, query: '', city: '', results: [], days: [], currentDay: 0, selected: null, preview: null, conflict: null, conflictImpacts: [], busy: false, planVersion: 0 },
+  data: {
+    navH: 64, query: '', city: '', results: [], days: [], currentDay: 0,
+    slots: [], currentSlot: 0, selected: null, preview: null, conflict: null,
+    conflictImpacts: [], busy: false, planVersion: 0
+  },
   onLoad(options) {
     this.tripId = options.tripId || wx.getStorageSync('travel-agent:active-trip-id')
     this.dayId = options.dayId || ''
@@ -16,7 +20,24 @@ Page({
     const overview = await api.getTripOverview(this.tripId)
     const days = (overview.days || []).map((day, index) => ({ label: `Day ${day.day_number || index + 1}`, sub: day.date ? day.date.slice(5) : '', dayId: day.day_id || `day_${index + 1}`, raw: day }))
     const currentDay = Math.max(0, days.findIndex(day => day.dayId === this.dayId))
-    this.setData({ days, currentDay, city: (days[currentDay] && days[currentDay].raw.city) || '', planVersion: overview.plan_version || 1 })
+    const slots = this.slotsForDay(days[currentDay] && days[currentDay].raw)
+    this.setData({
+      days, currentDay, slots, currentSlot: Math.max(slots.length - 2, 0),
+      city: (days[currentDay] && days[currentDay].raw.city) || '', planVersion: overview.plan_version || 1
+    })
+  },
+  slotsForDay(day) {
+    const items = (day && day.items) || []
+    const slots = [{ label: '当天最前面', sub: '首个节点之前', afterId: '' }]
+    items.forEach((item, index) => {
+      const next = items[index + 1]
+      slots.push({
+        label: next ? `${item.time} 后` : '当天最后',
+        sub: next ? `${item.name || item.location} 与 ${next.name || next.location} 之间` : `${item.name || item.location} 之后`,
+        afterId: item.item_id
+      })
+    })
+    return slots
   },
   async search() {
     if (!this.data.query.trim() || this.data.busy) return
@@ -26,7 +47,18 @@ Page({
     finally { this.setData({ busy: false }) }
   },
   choosePlace(event) { this.setData({ selected: this.data.results[Number(event.currentTarget.dataset.index)], preview: null, conflict: null }) },
-  chooseDay(event) { this.setData({ currentDay: event.detail.index, preview: null, conflict: null }) },
+  chooseDay(event) {
+    const currentDay = Number(event.detail.index)
+    const day = this.data.days[currentDay]
+    const slots = this.slotsForDay(day && day.raw)
+    this.setData({
+      currentDay, slots, currentSlot: Math.max(slots.length - 2, 0),
+      city: (day && day.raw.city) || '', preview: null, conflict: null
+    })
+  },
+  chooseSlot(event) {
+    this.setData({ currentSlot: Number(event.currentTarget.dataset.index), preview: null, conflict: null })
+  },
   async preview(forceInsert = false, duration = 90) {
     if (!this.data.selected || this.data.busy) return
     const day = this.data.days[this.data.currentDay]
@@ -35,7 +67,8 @@ Page({
       const result = await api.previewInsert(this.tripId, day.dayId, {
         place_id: this.data.selected.place_id, plan_version: this.data.planVersion,
         request_id: `preview-${Date.now()}`, preferred_duration_minutes: duration,
-        user_locked: true, force_insert: forceInsert
+        insert_after_item_id: (this.data.slots[this.data.currentSlot] || {}).afterId || null,
+        user_locked: false, force_insert: forceInsert
       })
       if (result.status === 'INSERTION_CONFLICT') this.setData({ conflict: result, conflictImpacts: [{ text: result.reason, level: 'error' }], preview: null })
       else this.setData({ preview: result, conflict: null })

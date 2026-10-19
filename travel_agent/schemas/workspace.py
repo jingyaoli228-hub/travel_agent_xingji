@@ -64,8 +64,20 @@ class InsertPoiRequest(VersionedMutation):
     place_id: str
     insert_after_item_id: Optional[str] = None
     preferred_duration_minutes: int = 90
-    user_locked: bool = True
+    user_locked: bool = False
     force_insert: bool = False
+
+
+class ReorderDayRequest(VersionedMutation):
+    ordered_item_ids: List[str]
+
+
+class ItemLockRequest(VersionedMutation):
+    locked: bool
+
+
+class DeleteItemRequest(VersionedMutation):
+    pass
 
 
 class ApplyPatchRequest(VersionedMutation):

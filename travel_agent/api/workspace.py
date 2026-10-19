@@ -13,7 +13,8 @@ from pydantic import BaseModel
 
 from travel_agent.graph.workflow import get_compiled_graph
 from travel_agent.schemas.workspace import (
-    ApplyPatchRequest, HotelSelectionRequest, InsertPoiRequest, UseRecommendedHotelsRequest,
+    ApplyPatchRequest, DeleteItemRequest, HotelSelectionRequest, InsertPoiRequest,
+    ItemLockRequest, ReorderDayRequest, UseRecommendedHotelsRequest,
 )
 from travel_agent.workspace.service import PlanVersionConflict, PlaceRejected, WorkspaceNotFound, workspace_service
 
@@ -75,6 +76,17 @@ def _status_for(days: list[Any], score: float) -> tuple[str, bool]:
 def _snapshot_values(trip_id: str) -> dict[str, Any]:
     snapshot = get_compiled_graph().get_state({"configurable": {"thread_id": trip_id}})
     return snapshot.values if snapshot else {}
+
+
+def _sync_workspace_itinerary(trip_id: str) -> None:
+    """Keep the conversation graph's L0 itinerary aligned with workspace edits."""
+    graph = get_compiled_graph()
+    config = {"configurable": {"thread_id": trip_id}}
+    snapshot = graph.get_state(config)
+    if snapshot and snapshot.values:
+        graph.update_state(config, {
+            "itinerary": {"days": [day.model_dump() for day in workspace_service.get(trip_id).days]}
+        })
 
 
 @router.get("/trips")
@@ -363,11 +375,49 @@ def apply_patch(trip_id: str, request: ApplyPatchRequest) -> dict[str, Any]:
     try:
         result = workspace_service.apply_patch(trip_id, request.patch_id, request.current_plan_version, request.request_id)
         # Keep LangGraph L0 state synchronized; workspace remains the version authority.
-        graph = get_compiled_graph()
-        config = {"configurable": {"thread_id": trip_id}}
-        snapshot = graph.get_state(config)
-        if snapshot and snapshot.values:
-            graph.update_state(config, {"itinerary": {"days": [day.model_dump() for day in workspace_service.get(trip_id).days]}})
+        _sync_workspace_itinerary(trip_id)
+        return result
+    except Exception as exc:
+        raise _translate_error(exc)
+
+
+@router.post("/trips/{trip_id}/days/{day_id}/reorder")
+def reorder_day(trip_id: str, day_id: str, request: ReorderDayRequest) -> dict[str, Any]:
+    _ensure_workspace(trip_id)
+    try:
+        result = workspace_service.reorder_day(
+            trip_id, day_id, request.ordered_item_ids,
+            request.current_plan_version, request.request_id,
+        )
+        _sync_workspace_itinerary(trip_id)
+        return result
+    except Exception as exc:
+        raise _translate_error(exc)
+
+
+@router.post("/trips/{trip_id}/days/{day_id}/items/{item_id}/lock")
+def set_item_lock(trip_id: str, day_id: str, item_id: str, request: ItemLockRequest) -> dict[str, Any]:
+    _ensure_workspace(trip_id)
+    try:
+        result = workspace_service.set_item_lock(
+            trip_id, day_id, item_id, request.locked,
+            request.current_plan_version, request.request_id,
+        )
+        _sync_workspace_itinerary(trip_id)
+        return result
+    except Exception as exc:
+        raise _translate_error(exc)
+
+
+@router.post("/trips/{trip_id}/days/{day_id}/items/{item_id}/delete")
+def delete_item(trip_id: str, day_id: str, item_id: str, request: DeleteItemRequest) -> dict[str, Any]:
+    _ensure_workspace(trip_id)
+    try:
+        result = workspace_service.delete_item(
+            trip_id, day_id, item_id,
+            request.current_plan_version, request.request_id,
+        )
+        _sync_workspace_itinerary(trip_id)
         return result
     except Exception as exc:
         raise _translate_error(exc)
@@ -378,6 +428,7 @@ def rollback_patch(trip_id: str, request: RollbackRequest) -> dict[str, Any]:
     _ensure_workspace(trip_id)
     try:
         state = workspace_service.rollback(trip_id, request.plan_version)
+        _sync_workspace_itinerary(trip_id)
         return {
             "status": "ROLLED_BACK", "plan_version": state.plan_version,
             "days": [day.model_dump(mode="json") for day in state.days],

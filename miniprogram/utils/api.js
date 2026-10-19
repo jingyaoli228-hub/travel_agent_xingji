@@ -105,6 +105,27 @@ function applyPatch(tripId, payload) {
   })
 }
 
+function reorderDay(tripId, dayId, payload) {
+  if (localApi && localApi.reorderDay) return localApi.reorderDay(tripId, dayId, payload)
+  return request(`/api/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(dayId)}/reorder`, {
+    method: 'POST', data: payload, timeout: 120000
+  })
+}
+
+function setItemLock(tripId, dayId, itemId, payload) {
+  if (localApi && localApi.setItemLock) return localApi.setItemLock(tripId, dayId, itemId, payload)
+  return request(`/api/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(dayId)}/items/${encodeURIComponent(itemId)}/lock`, {
+    method: 'POST', data: payload, timeout: 30000
+  })
+}
+
+function deleteItem(tripId, dayId, itemId, payload) {
+  if (localApi && localApi.deleteItem) return localApi.deleteItem(tripId, dayId, itemId, payload)
+  return request(`/api/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(dayId)}/items/${encodeURIComponent(itemId)}/delete`, {
+    method: 'POST', data: payload, timeout: 120000
+  })
+}
+
 function listTrips(userId) { return localApi ? localApi.listTrips(userId) : request(`/api/trips?user_id=${encodeURIComponent(userId)}`, { timeout: 30000 }) }
 function deleteTrip(tripId) { return localApi ? localApi.deleteTrip(tripId) : request(`/api/trips/${encodeURIComponent(tripId)}`, { method: 'DELETE', timeout: 30000 }) }
 function copyTrip(tripId, userId) { return localApi ? localApi.copyTrip(tripId, userId) : request(`/api/trips/${encodeURIComponent(tripId)}/copy`, { method: 'POST', data: { user_id: userId }, timeout: 30000 }) }
@@ -118,7 +139,8 @@ function ensureDemo() {
 
 module.exports = {
   postChat, getResearchStatus, getSession, getPlanningContext, getTripOverview, rollbackPatch,
-  autocompletePlaces, previewInsert, applyPatch, listTrips, deleteTrip, copyTrip, getTripInsight,
+  autocompletePlaces, previewInsert, applyPatch, reorderDay, setItemLock, deleteItem,
+  listTrips, deleteTrip, copyTrip, getTripInsight,
   parseXhs, storeXhs, ensureDemo, isLocalMode: Boolean(localApi),
   demoTripId: localApi ? localApi.DEMO_TRIP_ID : ''
 }

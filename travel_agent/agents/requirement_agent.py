@@ -89,7 +89,10 @@ _PATCH_SCALAR_FIELDS: Dict[str, type] = {
     "passport_country": str, "visa_status": str, "pace": str, "daily_attraction_count": int,
     "wake_up_time": str, "latest_return_time": str, "special_needs": str,
 }
-_PATCH_LIST_FIELDS = {"interests", "experience_preferences", "region_preferences", "constraints"}
+_PATCH_LIST_FIELDS = {
+    "interests", "experience_preferences", "region_preferences", "constraints",
+    "requested_places", "excluded_places",
+}
 
 # Safety net: `pace`/`interests` are closed enumerations the rest of the
 # pipeline keys off of verbatim (e.g. `TravelRequirement.apply_defaults()`'s
@@ -176,7 +179,8 @@ class RequirementAgent:
                 f"可用字段名: {field_names}\n"
                 f'pace 字段的值只能是这三个中文字符串之一："{PACE_OPTIONS[0]}"/"{PACE_OPTIONS[1]}"/'
                 f'"{PACE_OPTIONS[2]}"，不要翻译成英文或其他表述。\n'
-                "列表类字段 (interests/experience_preferences/region_preferences/constraints) "
+                "列表类字段 (interests/experience_preferences/region_preferences/constraints/"
+                "requested_places/excluded_places) "
                 "只需给出本轮新提到的新增项，不要重复已有项。完全没有新增信息时 updates 为 {}。\n\n"
                 f"已知需求: {requirement.model_dump_json()}\n\n"
                 f"用户最新消息: {user_message}"
@@ -210,6 +214,7 @@ class RequirementAgent:
         Unknown/hallucinated field names are silently dropped.
         """
         merged = requirement.model_dump()
+        pace_was_updated = False
         for key, value in updates.items():
             if key in _PATCH_LIST_FIELDS:
                 if not isinstance(value, list):
@@ -227,12 +232,17 @@ class RequirementAgent:
                     if normalized not in PACE_OPTIONS:
                         continue
                     merged[key] = normalized
+                    pace_was_updated = True
                     continue
                 py_type = _PATCH_SCALAR_FIELDS[key]
                 try:
                     merged[key] = py_type(value)
                 except (TypeError, ValueError):
                     continue
+        if pace_was_updated and "daily_attraction_count" not in updates:
+            merged["daily_attraction_count"] = {"特种兵": 5, "平衡": 3, "松弛": 2}.get(merged.get("pace"), 3)
+            merged["wake_up_time"] = "07:30" if merged.get("pace") == "特种兵" else "08:30"
+            merged["latest_return_time"] = "23:00" if merged.get("pace") == "特种兵" else "21:30"
         return TravelRequirement(**merged)
 
     # -- Heuristic (offline) path --------------------------------------
@@ -310,6 +320,25 @@ class RequirementAgent:
                         found_experience.append(tag)
         requirement.experience_preferences = found_experience
 
+        # The P0 preference confirmation always labels these two fields.
+        # Keep them separate from region selection: "大熊猫、春熙路、太古里"
+        # are requested POIs, not three geographic regions to fan out into.
+        def _labelled_places(label: str) -> List[str]:
+            match = re.search(rf"{label}\s*[：:]\s*([^；;。]+)", text)
+            if not match:
+                return []
+            value = match.group(1).strip()
+            if not value or any(word in value for word in ("没有", "无指定", "可留空")):
+                return []
+            return [part.strip() for part in re.split(r"[、,，/]|和|以及", value) if part.strip()]
+
+        for name in _labelled_places("必去"):
+            if name not in requirement.requested_places:
+                requirement.requested_places.append(name)
+        for name in _labelled_places("不想去"):
+            if name not in requirement.excluded_places:
+                requirement.excluded_places.append(name)
+
         # explicit constraints (dietary/accessibility/pace-related asks that
         # aren't covered by the structured fields above)
         constraint_keywords = ["素食", "清真", "过敏", "无麸质", "轮椅", "不要早起", "不吃"]
@@ -348,6 +377,10 @@ class RequirementAgent:
             parts.append(f"兴趣偏好: {', '.join(r.interests)}")
         if r.experience_preferences:
             parts.append(f"细分体验偏好: {', '.join(r.experience_preferences)}")
+        if r.requested_places:
+            parts.append(f"必去地点: {', '.join(r.requested_places)}")
+        if r.excluded_places:
+            parts.append(f"不想去: {', '.join(r.excluded_places)}")
         if r.region_preferences:
             parts.append(f"区域安排: {', '.join(r.region_preferences)}")
         if r.daily_attraction_count:

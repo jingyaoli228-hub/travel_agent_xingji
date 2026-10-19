@@ -1,9 +1,9 @@
 <view class="xj-sheet {{dragging?'is-drag':''}}" style="height:{{fullH}}px;transform:translateY({{y}}px)">
-  <view class="xj-sheet__head" catchtouchstart="onStart" catchtouchmove="onMove" catchtouchend="onEnd" catchtouchcancel="onEnd">
-    <view class="xj-sheet__handle"></view>
+  <view class="xj-sheet__head">
+    <view class="xj-sheet__handle-zone" catchtouchstart="onStart" catchtouchmove="onMove" catchtouchend="onEnd" catchtouchcancel="onEnd"><view class="xj-sheet__handle"></view></view>
     <slot name="header"></slot>
   </view>
-  <scroll-view class="xj-sheet__body" scroll-y="{{level==='full'||scrollAlways}}" enhanced show-scrollbar="{{false}}" style="height:{{bodyH}}px" bindscrolltolower="onLower">
+  <scroll-view class="xj-sheet__body" scroll-y="{{!scrollDisabled && (level==='full'||scrollAlways)}}" enhanced show-scrollbar="{{false}}" style="height:{{bodyH}}px" bindscrolltolower="onLower">
     <slot></slot>
     <view style="height:{{bottomPad}}rpx"></view>
   </scroll-view>

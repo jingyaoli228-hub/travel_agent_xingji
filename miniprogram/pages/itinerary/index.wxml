@@ -25,7 +25,7 @@
     </xj-empty-state>
   </view>
 
-  <xj-bottom-sheet wx:if="{{hasTrip}}" level="{{level}}" top-offset="{{navH}}"
+  <xj-bottom-sheet wx:if="{{hasTrip}}" level="{{level}}" top-offset="{{navH}}" scroll-disabled="{{sorting}}"
     header-height="{{offline ? 224 : 208}}" bind:change="onLevel">
     <view slot="header" class="sheet-header">
       <xj-day-tabs days="{{days}}" current="{{currentDay}}" bind:change="onDay"></xj-day-tabs>
@@ -78,17 +78,20 @@
     </xj-node-card>
 
     <view wx:else class="day-list">
+      <view wx:if="{{!readOnly}}" class="sort-hint">长按右侧手柄拖动地点；已锁定节点需先解锁</view>
       <block wx:for="{{dayEntries}}" wx:key="index">
-        <xj-empty-slot wx:if="{{item.node.pendingMeal}}" time="{{item.node.time}}"
-          label="{{item.node.activity==='dinner'?'晚餐 · 待定':'午餐 · 待定'}}"
-          action-text="" interactive="{{false}}"></xj-empty-slot>
-        <xj-itinerary-card wx:else item-id="{{item.node.item_id}}" time="{{item.node.time}}"
-          duration="{{item.node.durationLabel}}" name="{{item.node.displayName}}" meta="{{item.node.meta}}"
-          locked="{{item.node.user_locked}}" rating="{{item.node.rating}}"
-          conflict="{{item.node.conflictReason}}"
-          active="{{focusItem && focusItem.item_id===item.node.item_id}}" bind:tap="onCard"></xj-itinerary-card>
-        <xj-transit wx:if="{{item.transit}}" mode="{{item.transit.mode}}"
-          text="{{item.transit.text}}" estimated="{{item.transit.estimated}}"></xj-transit>
+        <view class="timeline-row {{sorting && index===dragIndex?'is-dragging':''}}" data-index="{{index}}" bindlongpress="startReorder" bindtouchmove="moveReorder" bindtouchend="endReorder" bindtouchcancel="endReorder">
+          <xj-empty-slot wx:if="{{item.node.pendingMeal}}" time="{{item.node.time}}"
+            label="{{item.node.activity==='dinner'?'晚餐 · 待定':'午餐 · 待定'}}"
+            action-text="" interactive="{{false}}"></xj-empty-slot>
+          <view wx:else class="timeline-card-row"><view class="timeline-card-main"><xj-itinerary-card item-id="{{item.node.item_id}}" time="{{item.node.time}}"
+            duration="{{item.node.durationLabel}}" name="{{item.node.displayName}}" meta="{{item.node.meta}}"
+            locked="{{item.node.user_locked}}" rating="{{item.node.rating}}"
+            conflict="{{item.node.conflictReason}}"
+            active="{{focusItem && focusItem.item_id===item.node.item_id}}" bind:tap="onCard"></xj-itinerary-card></view><view wx:if="{{!readOnly && item.node.draggable}}" class="drag-handle">⋮⋮</view></view>
+          <xj-transit wx:if="{{item.transit}}" mode="{{item.transit.mode}}"
+            text="{{item.transit.text}}" estimated="{{item.transit.estimated}}"></xj-transit>
+        </view>
       </block>
     </view>
   </xj-bottom-sheet>

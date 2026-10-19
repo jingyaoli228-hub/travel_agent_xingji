@@ -170,6 +170,20 @@ class _FeedbackIntent(BaseModel):
     exclude: List[str] = Field(default_factory=list, description="用户明确要排除的名称")
 
 
+class _DestinationSearchStrategy(BaseModel):
+    """Internal Agent output: city areas to cover before POI retrieval."""
+
+    areas: List[str] = Field(default_factory=list, description="3-5 个互不重复的城市片区或方向")
+    focus_types: List[str] = Field(default_factory=list, description="优先体验类型")
+
+
+class _CandidateCuration(BaseModel):
+    """Internal Agent output: relevance judgement over real provider POIs."""
+
+    recommended_names: List[str] = Field(default_factory=list)
+    rejected_names: List[str] = Field(default_factory=list)
+
+
 def _infer_category_label(types: List[str]) -> str:
     type_set = set(types or [])
     for keys, label in _CATEGORY_LABEL_RULES:
@@ -187,6 +201,31 @@ def _price_bucket(price_level: Optional[str], buckets: dict, default: float) -> 
     if not price_level:
         return default
     return float(buckets.get(price_level, default))
+
+
+_AUXILIARY_PLACE_WORDS = (
+    "停车场", "停车区", "售票处", "检票口", "入口", "出口", "东门", "西门", "南门", "北门",
+    "游客中心", "旅游服务中心", "卫生间", "派出所", "地铁站", "公交站", "商店", "便利店",
+)
+
+
+def _normalized_place_name(value: str) -> str:
+    return re.sub(r"[\s·・（）()\-—_/]", "", (value or "").lower())
+
+
+def _place_topic_aliases(value: str) -> List[str]:
+    key = _normalized_place_name(value)
+    aliases = [key] if key else []
+    core = re.sub(r"(?:旅游)?(?:度假区|景区|基地|公园|商圈|片区|街区)$", "", key)
+    if len(core) >= 2 and core not in aliases:
+        aliases.append(core)
+    if core.startswith("大") and len(core) > 2 and core[1:] not in aliases:
+        aliases.append(core[1:])
+    return aliases
+
+
+def _is_auxiliary_place(name: str) -> bool:
+    return any(word in (name or "") for word in _AUXILIARY_PLACE_WORDS)
 
 
 def _extract_country(address: Optional[str], fallback: str) -> str:
@@ -285,6 +324,94 @@ class ResearchOrchestratorAgent:
             plan.append((tag, query_template.format(dest=dest_label), place_type))
         return plan
 
+    def _plan_destination_search(self, req: TravelRequirement) -> _DestinationSearchStrategy:
+        """Ask the Agent which parts of an ordinary city merit retrieval.
+
+        This is deliberately distinct from the user-facing region split used
+        for island/multi-base trips.  It improves search coverage without
+        asking the user to understand administrative districts.
+        """
+        if self._llm is None or not req.destination:
+            return _DestinationSearchStrategy()
+        try:
+            structured = self._llm.with_structured_output(_DestinationSearchStrategy, method="function_calling")
+            prompt = (
+                f"为{req.destination}{req.duration_days or 3}天旅行制定地点检索覆盖策略。"
+                "areas 给出 3-5 个值得覆盖且彼此不同的片区/方向，兼顾经典、本地生活和用户兴趣；"
+                "它们只能是片区，不要把单个景点当成片区。focus_types 只能从 "
+                f"{', '.join(EXPERIENCE_TYPES)} 中选择。"
+                f"用户兴趣：{req.interests or req.experience_preferences or ['未指定']}；"
+                f"明确必去：{req.requested_places or ['未指定']}。"
+            )
+            messages = [("system", self._system_prompt)] if self._system_prompt else []
+            messages.append(("human", prompt))
+            result = structured.invoke(messages)
+            if isinstance(result, _DestinationSearchStrategy):
+                areas = []
+                requested = [aliases for name in req.requested_places for aliases in [_place_topic_aliases(name)]]
+                for area in result.areas:
+                    # Models sometimes append a rationale after the area
+                    # name.  AMap needs a compact locality, not a sentence.
+                    area = re.split(r"[·・|｜—–，,、（(/]", str(area), maxsplit=1)[0].strip()
+                    area_aliases = _place_topic_aliases(area)
+                    overlaps_requested = any(
+                        left in right or right in left
+                        for left in area_aliases for group in requested for right in group
+                        if len(left) >= 2 and len(right) >= 2
+                    )
+                    if not area or overlaps_requested or area in areas:
+                        continue
+                    areas.append(area)
+                focus = [_TAG_TO_TYPE.get(tag, tag) for tag in result.focus_types]
+                return _DestinationSearchStrategy(
+                    areas=areas[:5],
+                    focus_types=list(dict.fromkeys(tag for tag in focus if tag in EXPERIENCE_TYPES))[:5],
+                )
+        except Exception as exc:  # noqa: BLE001 - strategy has a deterministic fallback
+            _logger.warning("destination search strategy failed: %s", exc)
+        return _DestinationSearchStrategy()
+
+    def _requested_place_worker(self, req: TravelRequirement) -> List[TravelExperience]:
+        """Resolve every explicit must-go term to one best real AMap POI."""
+        resolved: List[TravelExperience] = []
+        for requested in req.requested_places:
+            raw = get_tool_manager().call(
+                search_places,
+                {"query": f"{req.destination} {requested}", "location": req.destination, "limit": 8},
+                tool_name="amap_places.search_places",
+            )
+            requested_key = _normalized_place_name(requested)
+            rows = [row for row in raw if row.get("success", True) and row.get("place_id") and not _is_auxiliary_place(row.get("name", ""))]
+            if not rows:
+                continue
+
+            def exact_score(row: dict) -> tuple:
+                name_key = _normalized_place_name(row.get("name", ""))
+                name = row.get("name", "")
+                travel_name = 2 if re.search(r"基地|景区|公园|博物馆|美术馆|古镇|古城|街|里|寺|宫|山|湖", name) else 0
+                official_match = 4 if ("熊猫" in requested and re.search(r"繁育研究基地|熊猫基地", name)) else 0
+                non_travel = -6 if re.search(r"别墅|小区|公寓|售楼|公司|工作室|酒店|宾馆", name) else 0
+                return (
+                    official_match + travel_name + non_travel,
+                    3 if name_key == requested_key else 2 if requested_key in name_key else 1 if name_key in requested_key else 0,
+                    -abs(len(name_key) - len(requested_key)),
+                    float(row.get("rating") or 0),
+                )
+
+            item = max(rows, key=exact_score)
+            coordinates = item.get("location") or {}
+            types = item.get("types") or []
+            tag = "food" if any(value in types for value in ("restaurant", "cafe")) else "landmark"
+            resolved.append(TravelExperience(
+                name=item["name"], type=tag, category=_infer_category_label(types),
+                location=item.get("address") or req.destination or "", address=item.get("address"),
+                place_id=item.get("place_id"), latitude=coordinates.get("lat"), longitude=coordinates.get("lng"),
+                rating=item.get("rating", 0.0), popularity=_popularity_from_review_count(item.get("user_rating_count", 0)),
+                duration_minutes=_TYPE_DURATION_MIN.get(tag, 90), cost=0.0, best_time=_TYPE_BEST_TIME.get(tag),
+                advantages=[f"你明确提出想去「{requested}」"], disadvantages=[], source=_place_source(item, tag),
+            ))
+        return resolved
+
     # -- Workers ----------------------------------------------------
     def _experience_worker(
         self,
@@ -313,7 +440,13 @@ class ResearchOrchestratorAgent:
 
         results: List[TravelExperience] = []
         for item in raw:
-            if item["name"] in exclude_set or len(results) >= limit:
+            name = item.get("name", "")
+            if (
+                name in exclude_set
+                or any(term and term in name for term in exclude_set)
+                or _is_auxiliary_place(name)
+                or len(results) >= limit
+            ):
                 continue
             # Bulk discovery intentionally uses the search response only.
             # Fetching details for every one of 50+ candidates both adds no
@@ -346,6 +479,79 @@ class ResearchOrchestratorAgent:
                 )
             )
         return results
+
+    def _dedupe_candidate_pool(self, experiences: List[TravelExperience], req: TravelRequirement) -> List[TravelExperience]:
+        """Remove exact, auxiliary and explicit-request-family duplicates."""
+        deduped: List[TravelExperience] = []
+        seen_names: set[str] = set()
+        seen_requested_families: set[str] = set()
+        excluded = [_normalized_place_name(name) for name in req.excluded_places]
+        requested = [(_normalized_place_name(name), _place_topic_aliases(name)) for name in req.requested_places]
+        for item in experiences:
+            key = _normalized_place_name(item.name)
+            if not key or key in seen_names or _is_auxiliary_place(item.name):
+                continue
+            if any(term and term in key for term in excluded):
+                continue
+            family = next((primary for primary, aliases in requested if any(alias in key for alias in aliases if len(alias) >= 2)), None)
+            if family and family in seen_requested_families:
+                continue
+            seen_names.add(key)
+            if family:
+                seen_requested_families.add(family)
+            deduped.append(item)
+        return deduped
+
+    def _curate_candidates_with_agent(self, experiences: List[TravelExperience], req: TravelRequirement) -> List[TravelExperience]:
+        """Let the Agent select a broad, relevant shortlist from real POIs."""
+        if self._llm is None or not experiences:
+            return experiences
+        non_food_target = max((req.daily_attraction_count or 3) * (req.duration_days or 3), 3)
+        food_target = max((req.duration_days or 3) * 2, 2)
+        desired = min(len(experiences), non_food_target + food_target + 6)
+        payload = [{
+            "name": item.name, "type": item.type, "category": item.category,
+            "address": item.address or item.location, "rating": item.rating,
+            "description": item.short_description,
+        } for item in experiences[:50]]
+        try:
+            structured = self._llm.with_structured_output(_CandidateCuration, method="function_calling")
+            prompt = (
+                f"从下面高德真实候选中为{req.destination}{req.duration_days or 3}天行程筛选约{desired}个地点。"
+                "不能按列表前N个机械截取：要覆盖不同片区和文化/美食/拍照等不同体验；同一景区的门、"
+                "游客中心、分馆或近似重复只留一个；明确必去必须保留；明显无关项写入 rejected_names。"
+                f"用户兴趣：{req.interests + req.experience_preferences}；必去：{req.requested_places}；"
+                f"不想去：{req.excluded_places}。recommended_names 按推荐顺序返回且名称必须与候选完全一致。\n"
+                f"候选：{json.dumps(payload, ensure_ascii=False)}"
+            )
+            messages = [("system", self._system_prompt)] if self._system_prompt else []
+            messages.append(("human", prompt))
+            result = structured.invoke(messages)
+            if not isinstance(result, _CandidateCuration):
+                return experiences
+            by_name = {item.name: item for item in experiences}
+            rejected = set(result.rejected_names)
+            selected = [by_name[name] for name in result.recommended_names if name in by_name and name not in rejected]
+            selected_names = {item.name for item in selected}
+
+            # Enforce the hard product contract even if the LLM under-fills a
+            # category: requested POIs first, then enough activities/meals to
+            # build every day.  The ordering remains Agent-authored.
+            for requested in req.requested_places:
+                match = next((item for item in experiences if _normalized_place_name(requested) in _normalized_place_name(item.name)), None)
+                if match and match.name not in selected_names:
+                    selected.insert(0, match); selected_names.add(match.name)
+            for item in experiences:
+                current_non_food = sum(row.type != "food" for row in selected)
+                current_food = sum(row.type == "food" for row in selected)
+                if item.name in selected_names or item.name in rejected:
+                    continue
+                if (item.type == "food" and current_food < food_target) or (item.type != "food" and current_non_food < non_food_target):
+                    selected.append(item); selected_names.add(item.name)
+            return selected[:desired] if len(selected) >= min(desired, non_food_target + food_target) else experiences
+        except Exception as exc:  # noqa: BLE001 - full provider pool remains usable
+            _logger.warning("candidate Agent curation failed, keeping deduped pool: %s", exc)
+            return experiences
 
     def _run_plan(
         self, req: TravelRequirement, plan: List[Tuple[str, str, Optional[str]]], exclude: List[str],
@@ -692,7 +898,7 @@ class ResearchOrchestratorAgent:
         days = req.duration_days or 5
         daily_count = req.daily_attraction_count or 3
         required_non_food = max(daily_count * days, 3)
-        required_food = max(days + 1, 2)
+        required_food = max(days * 2, 2)
         required_total = required_non_food + required_food
 
         non_food = [e for e in research.experiences if e.type != "food"]
@@ -859,9 +1065,13 @@ class ResearchOrchestratorAgent:
         base, or this place genuinely isn't covered yet), this reduces to
         exactly the old baseline-tag behavior -- `RAG_NO_RESULT` is a normal
         outcome, not a degraded one."""
-        experiences: List[TravelExperience] = []
+        # Explicit POIs are resolved independently and placed first.  A broad
+        # category query for “大熊猫” used to return a base, several gates,
+        # visitor centres and shops while losing 春熙路/太古里 entirely.
+        experiences: List[TravelExperience] = self._requested_place_worker(req)
         regions = req.region_preferences if (req.region_split_confirmed and req.region_preferences) else [None]
-        base_exclude = list(extra_exclude or [])
+        base_exclude = list(extra_exclude or []) + list(req.excluded_places or [])
+        strategy = self._plan_destination_search(req) if regions == [None] else _DestinationSearchStrategy()
         for region in regions:
             topics, _evidence_titles = self._discover_specialties(req, region, memory_context)
             region_candidate = self._region_candidate_for(req, region, topics)
@@ -875,6 +1085,25 @@ class ResearchOrchestratorAgent:
                 dest_label=dest_label, region_candidate=region_candidate, tag_query_map=_TAG_QUERY_MAP,
             )
             plan = plan + [(tag, query, place_type) for query, place_type, tag in rag_plan]
+
+            # Search a different theme in each Agent-chosen area.  We keep a
+            # global category baseline as well, so an imperfect area choice
+            # cannot hide the rest of the city.
+            if region is None and strategy.areas:
+                focus_types = list(dict.fromkeys(
+                    strategy.focus_types
+                    + [_TAG_TO_TYPE.get(tag, tag) for tag in (req.experience_preferences or [])]
+                    + [_INTEREST_TO_TYPE[i] for i in (req.interests or []) if i in _INTEREST_TO_TYPE]
+                    + _BASELINE_TAGS
+                ))
+                area_plan: List[Tuple[str, str, Optional[str]]] = []
+                for index, area in enumerate(strategy.areas):
+                    tag = focus_types[index % len(focus_types)] if focus_types else _BASELINE_TAGS[index % len(_BASELINE_TAGS)]
+                    template, place_type = _TAG_QUERY_MAP.get(tag, [("{dest} 旅行体验", None)])[0]
+                    area_plan.append((tag, template.format(dest=f"{req.destination} {area}"), place_type))
+                # Five global category probes + up to five geographically
+                # diverse probes fit the existing bounded QPS/latency budget.
+                plan = plan[:5] + area_plan[:5]
             deduped_plan: List[Tuple[str, str, Optional[str]]] = []
             seen_queries: set = set()
             for entry in plan:
@@ -888,8 +1117,9 @@ class ResearchOrchestratorAgent:
             experiences.extend(
                 self._run_plan(req, plan, exclude=base_exclude + [e.name for e in experiences], region=region)
             )
+        experiences = self._dedupe_candidate_pool(experiences, req)
         self.enrich_activity_cards(experiences, req)
-        return experiences
+        return self._curate_candidates_with_agent(experiences, req)
 
     def run_full(
         self,
@@ -1178,6 +1408,7 @@ class ResearchOrchestratorAgent:
         daily_count: int,
         days: int,
         preferred_types: Optional[List[str]] = None,
+        required_names: Optional[List[str]] = None,
     ) -> Dict[str, List[dict]]:
         """Pick defaults that follow the user's interests and cover regions.
 
@@ -1217,13 +1448,32 @@ class ResearchOrchestratorAgent:
         }
 
         target_non_food = max(daily_count * days, 3)
-        target_food = max(days + 1, 2)
+        target_food = max(days * 2, 2)
 
         selected_non_food: List[dict] = []
+        selected_food: List[dict] = []
         selected_names: set = set()
+        all_non_food = [item for t, items in by_type.items() if t != "food" for item in items]
+
+        # Explicit must-go terms outrank every inferred score.  Match by
+        # containment because AMap normally returns the formal full name
+        # (e.g. “成都大熊猫繁育研究基地”) for a user's shorter phrase.
+        for requested in required_names or []:
+            requested_key = _normalized_place_name(requested)
+            match = next((
+                item for item in all_non_food
+                if requested_key and requested_key in _normalized_place_name(item.get("name", ""))
+            ), None)
+            if match is None:
+                match = next((
+                    item for item in food_pool
+                    if requested_key and requested_key in _normalized_place_name(item.get("name", ""))
+                ), None)
+            if match and match.get("name") not in selected_names:
+                (selected_food if match in food_pool else selected_non_food).append(match)
+                selected_names.add(match.get("name"))
 
         # Cover each explicitly researched region before filling globally.
-        all_non_food = [item for t, items in by_type.items() if t != "food" for item in items]
         regions = list(dict.fromkeys(item.get("region") for item in all_non_food if item.get("region")))
         for region in regions:
             region_items = [item for item in all_non_food if item.get("region") == region]
@@ -1249,4 +1499,11 @@ class ResearchOrchestratorAgent:
                 selected_names.add(item.get("name"))
             i += 1
 
-        return {"experiences": selected_non_food + food_pool[:target_food]}
+        for item in food_pool:
+            if len(selected_food) >= target_food:
+                break
+            if item.get("name") not in selected_names:
+                selected_food.append(item)
+                selected_names.add(item.get("name"))
+
+        return {"experiences": selected_non_food + selected_food}

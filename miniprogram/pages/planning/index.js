@@ -3,6 +3,9 @@ const api = require('../../utils/api')
 const STYLE_OPTIONS = ['人文古迹', '博物馆', '美食', '拍照', '自然']
 const PACE_OPTIONS = ['特种兵', '适中', '松弛']
 const WAKE_OPTIONS = ['早起', '正常', '晚起']
+const STYLE_TO_INTEREST = {
+  '人文古迹': '人文', '博物馆': '人文', '美食': '美食', '拍照': '摄影', '自然': '自然'
+}
 
 function newTripId() {
   return `trip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -58,7 +61,9 @@ Page({
       const context = await api.getPlanningContext(userId)
       const profile = context.profile || {}
       const interests = profile.interests || []
-      const styles = this.data.styles.map(item => ({ ...item, selected: interests.includes(item.label) }))
+      const styles = this.data.styles.map(item => ({
+        ...item, selected: interests.includes(STYLE_TO_INTEREST[item.label] || item.label)
+      }))
       this.setData({
         styles,
         profileHint: context.prefilled ? '已按你的历史偏好预填，带「上次」的可直接确认' : ''
@@ -66,15 +71,16 @@ Page({
     } catch (_) {}
   },
 
-  toggleOption(event) {
-    const key = event.currentTarget.dataset.key
-    const index = Number(event.currentTarget.dataset.index)
+  toggleOption(key, index) {
     const multiple = key === 'styles'
     const rows = this.data[key].map((item, idx) => ({
       ...item, selected: multiple ? (idx === index ? !item.selected : item.selected) : idx === index
     }))
     this.setData({ [key]: rows })
   },
+  toggleStyle(event) { this.toggleOption('styles', Number(event.detail.value)) },
+  choosePace(event) { this.toggleOption('paces', Number(event.detail.value)) },
+  chooseWake(event) { this.toggleOption('wakes', Number(event.detail.value)) },
 
   async submitIntent() {
     const prompt = this.data.prompt.trim()
@@ -135,17 +141,21 @@ Page({
     const styles = this.selectedLabel('styles')
     const pace = this.selectedLabel('paces')[0] || '适中'
     const wake = this.selectedLabel('wakes')[0] || '正常'
+    const interests = [...new Set(styles.map(label => STYLE_TO_INTEREST[label] || label))]
     const details = [
-      styles.length ? `偏好${styles.join('、')}` : '', `节奏${pace}`, `作息${wake}`,
-      this.data.mustGo.trim() ? `必去：${this.data.mustGo.trim()}` : '本次没有指定必去地点',
-      this.data.avoid.trim() ? `不想去：${this.data.avoid.trim()}` : '本次没有指定不想去地点'
+      interests.length ? `兴趣：${interests.join('、')}` : '', `节奏：${pace}`, `作息：${wake}`,
+      this.data.mustGo.trim() ? `必去：${this.data.mustGo.trim()}` : '必去：无',
+      this.data.avoid.trim() ? `不想去：${this.data.avoid.trim()}` : '不想去：无'
     ].filter(Boolean).join('；')
     wx.setStorageSync('travel-agent:last-preferences', { styles, pace, wake })
     this.setData({ busy: true, phase: 'planning', progressText: '正在准备目的地资料…' })
     this.startProgress()
     try {
-      let result = await api.postChat(this._tripId, `${details}。确认以上需求并开始规划。`, wx.getStorageSync('travel-agent:user-id'))
-      if (['confirmation', 'clarification', 'region_confirmation'].includes(result.data && result.data.stage)) {
+      // First persist the edits, then confirm in a separate turn. Sending
+      // “修改 + 确认” in one message made the confirmation node skip every
+      // chip and must-go field on real devices.
+      let result = await api.postChat(this._tripId, `请更新本次需求：${details}。`, wx.getStorageSync('travel-agent:user-id'))
+      if ((result.data && result.data.stage) === 'confirmation') {
         result = await api.postChat(this._tripId, '确认，按以上信息开始搜索和规划。', wx.getStorageSync('travel-agent:user-id'))
       }
       await this.advance(result)
@@ -184,10 +194,10 @@ Page({
     if (stage === 'selection') {
       const candidates = flattenCandidates(data.candidates)
       const days = requirementDays(data.travel_requirement || this.data.requirement)
-      const capacity = days * Number((data.travel_requirement && data.travel_requirement.daily_attraction_count) || 3)
+      const dailyCount = Number((data.travel_requirement && data.travel_requirement.daily_attraction_count) || 3)
+      const capacity = days * dailyCount + days * 2
       const mustNames = this.data.mustGo.split(/[、,，]/).map(value => value.trim()).filter(Boolean)
-      const highValue = candidates.filter(item => Number(item.rating || 0) >= 4.5 || mustNames.some(name => item.name.includes(name)))
-      if (highValue.length > capacity) {
+      if (candidates.length > capacity) {
         const rows = candidates.map(item => ({ ...item, choice: mustNames.some(name => item.name.includes(name)) ? 'must' : 'want' }))
         this.stopProgress()
         this.setData({
@@ -230,10 +240,17 @@ Page({
   async submitSelection(event) {
     if (this.data.busy) return
     const recommended = event.currentTarget.dataset.mode === 'recommended'
-    let chosen = this.data.candidates.filter(item => item.choice !== 'exclude')
-    if (recommended && chosen.length > this.data.capacity) {
-      chosen = chosen.sort((a, b) => (a.choice === 'must' ? -1 : 0) - (b.choice === 'must' ? -1 : 0) || Number(b.rating || 0) - Number(a.rating || 0)).slice(0, this.data.capacity)
+    if (recommended) {
+      this.setData({ phase: 'planning', busy: true, progressText: 'Agent 正在按全面性筛选并生成草稿…' })
+      this.startProgress()
+      try {
+        await this.advance(await api.postChat(
+          this._tripId, '按推荐自动选择并生成草稿行程。', wx.getStorageSync('travel-agent:user-id')
+        ))
+      } catch (error) { this.showPlanningError(error) }
+      return
     }
+    let chosen = this.data.candidates.filter(item => item.choice !== 'exclude')
     const waitlist = this.data.candidates.filter(item => !chosen.some(row => row.name === item.name)).map(item => item.name)
     const message = `选择这些地点：${chosen.map(item => item.name).join('、')}。${waitlist.length ? `其余放入候补：${waitlist.join('、')}。` : ''}请生成草稿。`
     this.setData({ phase: 'planning', busy: true, progressText: '正在按选择生成草稿…' })
