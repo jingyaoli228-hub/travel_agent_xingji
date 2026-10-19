@@ -19,6 +19,7 @@ Thumbs.db
 *.log
 .claude/
 miniprogram/project.private.config.json
+miniprogram/config.private.js
 data/
 !miniprogram/data/
 !miniprogram/data/*.js

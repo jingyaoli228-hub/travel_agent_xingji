@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     require_persistent_services: bool = False
     cors_origins: str = "http://localhost:5173,http://localhost"
+    trial_access_key: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("TRIAL_ACCESS_KEY", "trial_access_key"),
+    )
 
     # --- Kimi (Moonshot, OpenAI-compatible) — the LLM used by all four agents ---
     # get_llm(role=...) in config/llm.py is the single place that builds model clients;

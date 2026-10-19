@@ -7,9 +7,11 @@ Run with:
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from secrets import compare_digest
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from travel_agent.api.chat import router as chat_router
 from travel_agent.api.chat_stream import router as chat_stream_router
@@ -49,6 +51,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def protect_trial_api(request: Request, call_next):
+    """Keep the phone-trial API private without exposing provider credentials.
+
+    Health checks remain public for Docker/Cloudflare.  The middleware is
+    disabled when TRIAL_ACCESS_KEY is unset, so local development and the
+    existing test suite keep their current behaviour.
+    """
+    if request.url.path.startswith("/api/") and request.method != "OPTIONS" and settings.trial_access_key:
+        supplied = request.headers.get("X-Xingji-Trial-Key", "")
+        if not compare_digest(supplied, settings.trial_access_key):
+            return JSONResponse(status_code=401, content={"detail": "体验版访问凭证无效"})
+    return await call_next(request)
 
 app.include_router(chat_router, tags=["chat"])
 app.include_router(chat_stream_router, tags=["chat"])
