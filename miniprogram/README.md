@@ -1,25 +1,26 @@
 # 行迹微信小程序
 
-这是原生微信小程序客户端，不依赖 React/Vite。P0 体验版默认使用内置数据和微信本地缓存，手机无需开发调试、无需外部域名，也不会产生云开发费用；仓库中的 FastAPI 接口适配仍保留，获得已备案 HTTPS 域名后可以切回真实服务。
+这是原生微信小程序客户端，不依赖 React/Vite。当前 P0 体验版默认连接腾讯云 FastAPI、PostgreSQL、Redis 与 Chroma，并通过高德 Web Service、DeepSeek 和 RAG/Agent 完成任意国内城市的真实检索与规划；`local-api.js` 只保留为断网开发夹具，不再是体验版数据源。
 
 ## 本地预览
 
 1. 打开微信开发者工具，导入本目录。
 2. `project.config.json` 已配置当前项目的正式 AppID；如需更换主体，请同步替换为新主体的 AppID。
-3. `config.js` 默认是 `transport: "local-demo"`，不会发出外部网络请求。
-4. 真后端联调时把 `transport` 改成 `remote`，并把 `apiBaseUrl` 配成已备案且已登记的 HTTPS 合法域名。
+3. `config.js` 默认是 `transport: "remote"`，`apiBaseUrl` 必须是微信公众平台已登记的 HTTPS request 合法域名。
+4. 本机忽略文件 `config.private.js` 保存体验网关地址和短期访问凭证；它会随本地上传包进入体验版，但不会提交到 Git。
 
-## P0 体验版数据
+## 本地演示夹具
 
 - `data/p0-demo.js`：北京 3 日行程、GCJ-02 地点、不同交通方式路线和本地点位目录。
 - `utils/local-api.js`：与真实 REST API 同形的本地实现，覆盖规划、候选溢出、加地点、冲突预览、当天重算、撤销、复制、删除、小红书正文解析和 Agent 透视。
 - 数据按行程拆成 `travel-agent:local-trip:<tripId>` 等多个 key；离线展示缓存继续使用 `travel-agent:trip:<tripId>:meta/day:*`，单 key 上限仍为 900KB。
-- 首次启动会种入一条可直接试用的北京 3 日行程；新建、复制和对话修改都不会覆盖旧行程。
+- 仅当手动把 `transport` 改回 `local-demo` 时，首次启动才会种入北京 3 日演示行程。
+- 从旧体验版升级到真实云端版时会定向清理 `p0-beijing-demo`，不会删除真实云端行程的离线缓存。
 
-## 发布前必须完成
+## 体验版与正式发布边界
 
-- 若切回真实后端：配置备案域名、HTTPS 和微信公众平台 request 合法域名。
-- 若切回真实后端：增加微信登录、用户身份与资源所有权校验；现有 FastAPI 不应无鉴权直接公网开放。
+- 当前体验版已配置 HTTPS request 合法域名，并用 `X-Xingji-Trial-Key` 保护所有 `/api/*` 请求；健康检查保持公开。
+- 正式发布前仍需把短期共享体验凭证升级为 `wx.login` + openid 资源所有权校验，并把临时隧道换成长期稳定域名。
 - 真实模式的 `apiBaseUrl` 不要带末尾 `/`。
 
 ## 已支持
