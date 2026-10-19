@@ -1,5 +1,6 @@
-// 开发者工具通过本机 8080 SSH 隧道访问腾讯云网关。
-// 真机发布前须改成已在微信公众平台配置过的 HTTPS request 合法域名。
+// P0 体验版不依赖外部域名：所有可交互状态按行程拆分保存在本机。
+// 获得已备案域名后，将 transport 改为 "remote" 并填写 apiBaseUrl 即可切回真实后端。
 module.exports = {
-  apiBaseUrl: "http://127.0.0.1:8080"
+  transport: "local-demo",
+  apiBaseUrl: ""
 }
