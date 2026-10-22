@@ -272,3 +272,22 @@
 ### 功能变化与验证
 
 新旧认证流程可由私有本机配置明确切换：旧凭证模式可让新版界面/功能连接现有体验后端；默认仍使用新微信 OpenID 登录，不会悄悄降级。定向测试 `python -m pytest -q travel_agent/tests/test_trial_access.py travel_agent/tests/test_deployment_preflight.py travel_agent/tests/test_auth.py travel_agent/tests/test_miniprogram_p0_contracts.py`：11 passed。此处仅为兼容代码准备；尚未把体验凭证复制到客户端、部署服务器、提交 GitHub 或上传体验版。
+
+## 体验版实际部署记录（2026-10-22）
+
+### 本轮代码与部署改动
+
+- 已部署包含 P0 更新的后端代码至新的服务器 release，并原子切换 `/opt/travel-agent/current`；新 release 的 `runtime`、`data` 继续复用现有持久化目录，未重建数据库或清理用户数据。仅更新并重启 API、worker、gateway、autoheal 容器，Postgres、Redis、Chroma 与隧道容器保持原状。
+- `scripts/package_for_server.ps1` 现在从服务器包中排除 `miniprogram/config.private.js`、`project.private.config.json` 等本机私有配置，并检查归档中没有这些文件，避免把体验凭证随后端发布包发送。
+- 微信体验构建使用被 Git 忽略的本机 `miniprogram/config.private.js`：指向当前 HTTPS API，并显式设为 `authMode: "trial"`。配置中含有服务器既有共享体验凭证，因此不记录在文档或仓库；此凭证仅用于微信受限体验成员访问，不是个人身份鉴权。
+
+### 功能变化与验证
+
+- 小程序新界面与 P0 行程规划、行程编辑、离线缓存及风险提示功能已随微信开发者工具 CLI 上传为 `0.9.6`，上传描述为“P0体验版更新：行程规划、交互优化与风险提示”。CLI 使用行迹 AppID `wx3e3c60840720f755`，结果为 `√ upload`；该操作上传体验版，不是提交审核或发布正式版。
+- 服务器 Compose 状态检查显示 API、gateway、worker、autoheal 健康；`http://127.0.0.1:8080/health/ready` 返回 HTTP 200。鉴权探针在无凭证时返回 401；使用服务器现有体验凭证时请求通过鉴权并进入 API 路由（该探针请求因缺少业务参数返回 422），证明体验版的兼容访问路径可用。
+- 本机定向 P0 测试此前 35 项通过；此前收尾记录的定向套件为 40 passed。此处未重跑全量测试。构建期间 npm 提示存在依赖审计告警（3 moderate、6 high），本轮未自动升级依赖。
+- 本轮代码和上述部署安全修正已推送 GitHub `main`，最新提交 `13f98e1`。`config.private.js` 和体验凭证没有提交。
+
+### 必须保留的安全边界
+
+当前 `0.9.6` 是通过显式旧体验凭证兼容模式连接线上后端。小程序包内的共享体验凭证可被体验包成员提取，因此仅可用于受限体验成员，不能当作正式发布的个人身份安全控制。P0 中“微信登录并以本人 OpenID 限制访问”仍未完成；在取得并配置独立小程序 AppSecret、本人 OpenID 和正式鉴权密钥后，应切换回默认 `wechat` 模式并重新部署/上传。当前版本也继续使用既有临时 HTTPS 隧道；尚未完成固定域名迁移或正式提审。
