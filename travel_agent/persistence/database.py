@@ -130,6 +130,21 @@ def list_sessions(user_id: str) -> list[dict[str, Any]]:
         return [dict(zip(("session_id", "stage", "created_at", "updated_at"), row)) for row in cur.fetchall()]
 
 
+def owns_session(session_id: str, user_id: str) -> bool:
+    if not user_id:
+        return False
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM sessions WHERE session_id=%s AND user_id=%s", (session_id, user_id))
+        return cur.fetchone() is not None
+
+
+def current_user_id() -> str | None:
+    # Request identity is injected by the FastAPI auth middleware.
+    from travel_agent.main import request_identity
+
+    return request_identity.get()
+
+
 def delete_trip_records(session_id: str) -> None:
     with connection() as conn, conn.cursor() as cur:
         cur.execute("DELETE FROM task_runs WHERE session_id=%s", (session_id,))
@@ -318,6 +333,15 @@ def save_xhs_import(import_id: str, user_id: str, source_text: str, parsed: dict
                VALUES (%s,%s,%s,%s) ON CONFLICT(import_id) DO NOTHING""",
             (import_id, user_id, source_text, Jsonb(parsed)),
         )
+
+
+def list_xhs_imports(user_id: str) -> list[dict[str, Any]]:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT import_id,source_text,parsed,created_at FROM xhs_imports WHERE user_id=%s ORDER BY created_at DESC LIMIT 100",
+            (user_id,),
+        )
+        return [dict(zip(("import_id", "content", "parsed", "created_at"), row)) for row in cur.fetchall()]
 
 
 def service_health() -> dict[str, str]:

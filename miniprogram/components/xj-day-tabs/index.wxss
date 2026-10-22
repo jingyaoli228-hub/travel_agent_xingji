@@ -5,3 +5,4 @@
 .xj-days__today{margin-left:8rpx;padding:0 8rpx;border-radius:8rpx;background:var(--xj-success-light);color:var(--xj-success);font-size:20rpx}
 .xj-days__s{font-weight:400}
 .xj-days__dot{position:absolute;top:4rpx;right:8rpx;width:14rpx;height:14rpx;border-radius:50%;background:var(--xj-warn);border:2rpx solid #fff}
+.xj-days__item.is-changed:not(.is-on){border-color:var(--xj-primary);color:var(--xj-primary)}.xj-days__change-dot{position:absolute;top:4rpx;right:8rpx;width:14rpx;height:14rpx;border-radius:50%;background:var(--xj-primary);border:2rpx solid #fff}

@@ -55,6 +55,32 @@ def _diff_itinerary(
     return {"day_numbers": preserved_days}, {"day_numbers": changed_days}, warnings
 
 
+def _diff_items(previous: Optional[Itinerary], updated: Optional[Itinerary]) -> List[Dict[str, Any]]:
+    if previous is None or updated is None:
+        return []
+    changes: List[Dict[str, Any]] = []
+    previous_days = {day.day_number: day for day in previous.days}
+    for day in updated.days:
+        old_day = previous_days.get(day.day_number)
+        old_items = old_day.items if old_day else []
+        old_by_id = {item.item_id: item for item in old_items}
+        old_by_name = {item.name or item.location: item for item in old_items}
+        matched_ids = set()
+        for item in day.items:
+            before = old_by_id.get(item.item_id) or old_by_name.get(item.name or item.location)
+            if before is None:
+                changes.append({"action": "ADD", "day": day.day_number, "name": item.name or item.location, "after": item.time})
+            else:
+                matched_ids.add(before.item_id)
+                if (before.time, before.duration_minutes, before.location) != (item.time, item.duration_minutes, item.location):
+                    changes.append({"action": "UPDATE", "day": day.day_number, "name": item.name or item.location,
+                                    "before": before.time, "after": item.time})
+        for item in old_items:
+            if item.item_id not in matched_ids:
+                changes.append({"action": "REMOVE", "day": day.day_number, "name": item.name or item.location, "before": item.time})
+    return changes[:40]
+
+
 class AgentResultAggregator:
     def aggregate(
         self,
@@ -84,6 +110,7 @@ class AgentResultAggregator:
         return AggregatedExecutionResult(
             requirement_changes=requirement_changes,
             new_activity_candidates=new_activity_candidates,
+            changed_items=_diff_items(previous_itinerary, updated_itinerary),
             updated_itinerary=updated_itinerary.model_dump() if updated_itinerary else None,
             preserved_scope=preserved_scope,
             changed_scope=changed_scope,

@@ -150,3 +150,26 @@ def test_planning_context_exposes_only_prefill_dimensions(monkeypatch):
     assert response.json()["prefilled"] is True
     assert response.json()["profile"]["interests"] == ["人文古迹"]
     assert "user_id" not in response.json()["profile"]
+
+
+def test_preference_screen_can_start_research_prefetch(monkeypatch):
+    from travel_agent.api import chat as chat_module
+
+    captured = {}
+    monkeypatch.setattr(
+        chat_module.research_prefetch,
+        "dispatch",
+        lambda session_id, requirement: captured.update(
+            session_id=session_id, destination=requirement.destination
+        ) or {"status": "queued", "progress": {}},
+    )
+    response = client.post(
+        "/api/research/prefetch",
+        json={
+            "session_id": "trip-prefetch",
+            "travel_requirement": {"destination": "北京", "duration_days": 3},
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "queued"
+    assert captured == {"session_id": "trip-prefetch", "destination": "北京"}

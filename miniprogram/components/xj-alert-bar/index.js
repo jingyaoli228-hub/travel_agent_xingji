@@ -1,11 +1,11 @@
 // 单一提醒位：传 alerts 数组，按优先级只显示一条，其余折叠为「N 条提醒」
-// 优先级：error / degraded / offline(1) > quality(2) > risk(3) > info(4)
+// 优先级：服务降级(1) > 天气/行程风险(2) > 质量草稿(3) > info(4)
 const META = {
   error: { p: 1, tone: 'error', icon: 'error-red' },
   degraded: { p: 1, tone: 'error', icon: 'warn-red' },
   offline: { p: 1, tone: 'error', icon: 'offline-red' },
-  quality: { p: 2, tone: 'warn', icon: 'shield-amber' },
-  risk: { p: 3, tone: 'warn', icon: 'warn-amber' },
+  risk: { p: 2, tone: 'warn', icon: 'warn-amber' },
+  quality: { p: 3, tone: 'warn', icon: 'shield-amber' },
   warn: { p: 3, tone: 'warn', icon: 'warn-amber' },
   info: { p: 4, tone: 'info', icon: 'info-blue' }
 };

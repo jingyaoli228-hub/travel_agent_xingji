@@ -68,16 +68,18 @@ class MemoryManager:
         confirmed_requirement: Optional[Dict[str, Any]] = None,
         user_choice: Optional[str] = None,
         rejected_option: Optional[str] = None,
+        user_edit: Optional[Dict[str, Any]] = None,
         episode: Optional[Union[TripEpisode, Dict[str, Any]]] = None,
         profile_fields: Optional[Dict[str, Any]] = None,
     ) -> None:
-        if any([original_request, confirmed_requirement, user_choice, rejected_option]):
+        if any([original_request, confirmed_requirement, user_choice, rejected_option, user_edit]):
             self.conversation.update(
                 session_id,
                 original_request=original_request,
                 confirmed_requirement=confirmed_requirement,
                 user_choice=user_choice,
                 rejected_option=rejected_option,
+                user_edit=user_edit,
             )
         if episode is not None:
             self.episodic.add_episode(episode if isinstance(episode, TripEpisode) else TripEpisode(**episode))

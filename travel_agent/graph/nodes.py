@@ -27,7 +27,7 @@ from travel_agent.evaluation.constraint_validator import ConstraintValidator as 
 from travel_agent.evaluation.planning_loop import build_repair_targets, choose_best, route_metric_attempt
 from travel_agent.evaluation.tripcraft_metric_evaluator import TripCraftMetricEvaluator
 from travel_agent.schemas.constraints import TravelConstraintSet
-from travel_agent.execution import research_jobs
+from travel_agent.execution import research_jobs, research_prefetch
 from travel_agent.execution.agent_router import AgentRouter
 from travel_agent.execution.execution_planner import ExecutionPlanner
 from travel_agent.execution.result_aggregator import AgentResultAggregator
@@ -383,15 +383,32 @@ def research_orchestrator_node(state: AgentState) -> Dict[str, Any]:
             selected = _research_agent.auto_select(
                 candidates, daily_count, days, preferred_types=preferred,
                 required_names=req.requested_places,
+                excluded_names=req.excluded_places,
             )
             update["candidates"] = candidates
             update["selected_places"] = selected
             update["research_mode"] = "feedback_auto_select"
         return update
 
-    result = _research_agent.run_full(
-        req, progress_cb=progress_cb, extra_exclude=rejected_names, memory_context=memory_context,
-    )
+    result = research_prefetch.get_result(state.get("session_id", "")) if mode == "initial" else None
+    if result is not None:
+        excluded = [name for name in [*rejected_names, *(req.excluded_places or [])] if name]
+        result.experiences = [
+            item for item in result.experiences
+            if not any(term in item.name or item.name in term for term in excluded)
+        ]
+        present = {item.name for item in result.experiences}
+        missing_required = [name for name in (req.requested_places or []) if not any(name in row or row in name for row in present)]
+        if missing_required:
+            required_req = req.model_copy(update={"requested_places": missing_required})
+            result.experiences = _research_agent._dedupe_candidate_pool(
+                [*_research_agent._requested_place_worker(required_req), *result.experiences], req
+            )
+        result.sources = result.all_sources()
+    else:
+        result = _research_agent.run_full(
+            req, progress_cb=progress_cb, extra_exclude=rejected_names, memory_context=memory_context,
+        )
     if not result.experiences:
         # A pass with zero place candidates is not a successful research
         # result.  Treating it as "done" previously surfaced an empty
@@ -509,11 +526,13 @@ def user_selection_node(state: AgentState) -> Dict[str, Any]:
         selected = _research_agent.auto_select(
             candidates, daily_count, days, preferred_types=preferred,
             required_names=req.requested_places,
+            excluded_names=req.excluded_places,
         )
     elif is_removal:
         base = _research_agent.auto_select(
             candidates, daily_count, days, preferred_types=preferred,
             required_names=req.requested_places,
+            excluded_names=req.excluded_places,
         )
         removed_names = {i["name"] for i in mentioned}
         selected = {"experiences": [e for e in base["experiences"] if e["name"] not in removed_names]}
@@ -535,6 +554,29 @@ def route_after_selection(state: AgentState) -> str:
     return "research_orchestrator" if state.get("current_node") == "research_orchestrator" else "planner"
 
 
+def _preserve_user_locked_items(previous: Itinerary, planned: Itinerary) -> Itinerary:
+    """Keep manually locked items in their original day and relative order."""
+    planned_by_day = {day.day_number: day for day in planned.days}
+    for old_day in previous.days:
+        target = planned_by_day.get(old_day.day_number)
+        if target is None:
+            planned.days.append(old_day.model_copy(deep=True))
+            continue
+        for old_index, old_item in enumerate(old_day.items):
+            if not old_item.user_locked:
+                continue
+            replacement_index = next(
+                (index for index, item in enumerate(target.items) if item.item_id == old_item.item_id), None
+            )
+            preserved = old_item.model_copy(deep=True)
+            if replacement_index is None:
+                target.items.insert(min(old_index, len(target.items)), preserved)
+            else:
+                target.items[replacement_index] = preserved
+    planned.days.sort(key=lambda day: day.day_number)
+    return planned
+
+
 def constraint_builder_node(state: AgentState) -> Dict[str, Any]:
     constraints = build_constraints(state.get("travel_requirement") or {}, state.get("user_profile_hint") or {})
     return {"travel_constraints": constraints.model_dump(), "current_node": "constraint_builder"}
@@ -553,6 +595,10 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
     rule_issues = review_report_data.get("issues") if review_report_data else None
     loop_count = state.get("review_loop_count", 0)
     profile_hint = state.get("user_profile_hint")
+    recent_edits = (state.get("last_user_edits") or [])[-5:]
+    if recent_edits:
+        edit_summary = "；".join(str(edit.get("summary") or "手动编辑") for edit in recent_edits)
+        revision_instruction = list(revision_instruction or []) + [f"尊重用户最近的手动行程修改：{edit_summary}"]
     # Stage-3 fix (design doc point 21): on a review-loop revision, optimize
     # the PREVIOUS itinerary rather than regenerating the whole trip from the
     # original pool every loop -- see PlannerAgent.run's docstring.
@@ -573,6 +619,9 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
             loop_count=loop_count, profile_hint=profile_hint, previous_itinerary=previous_itinerary,
         )
 
+    if previous_itinerary is not None:
+        itinerary = _preserve_user_locked_items(previous_itinerary, itinerary)
+
     settings = get_settings()
     needs_expansion = (
         feasibility.status == "insufficient"
@@ -585,6 +634,7 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
         "current_node": "planner",
         "need_user_input": False,
         "planner_attempt": int(state.get("planner_attempt", 0)) + 1,
+        "last_user_edits": [],
     }
     if needs_expansion:
         update["research_mode"] = "expansion"
@@ -812,15 +862,13 @@ def final_output_node(state: AgentState) -> Dict[str, Any]:
 
     # P0 copy rule: a draft that did not pass review must never claim that
     # planning is complete. The UI and conversation history use the same text.
-    opening = f"行程规划完成！{overview}" if not report or report.passed else f"行程草稿已生成（质量未达标）：{overview}"
-    response_lines = [opening, "", "== 每日安排 =="]
-    for day in itinerary.days:
-        region_label = f"（{day.items[0].region}）" if day.items and day.items[0].region else ""
-        response_lines.append(f"Day {day.day_number}{region_label}:")
-        for item in day.items:
-            response_lines.append(f"  {item.time} {item.activity} - {item.location}")
-    response_lines.append("")
-    response_lines.append(f"预估总花费：{budget.total:.0f} {budget.currency}（预算 {req.budget:.0f}）")
+    if report and report.passed:
+        opening = f"行程规划完成：{overview}"
+    elif report:
+        opening = f"行程草稿已生成（质量未达标）：{overview}"
+    else:
+        opening = f"行程草稿已生成（质量状态未知）：{overview}"
+    response_lines = [opening, f"共 {len(itinerary.days)} 天，预估花费 {budget.total:.0f} {budget.currency}。可在地图行程页查看每日安排。"]
 
     if research.warnings:
         response_lines.extend(["", "⚠ 数据可用性：", *[f"- {warning}" for warning in research.warnings]])
@@ -1011,43 +1059,23 @@ def route_after_execution_router(state: AgentState) -> str:
 
 
 def result_aggregation_node(state: AgentState) -> Dict[str, Any]:
-    """AgentResultAggregator's output rendered into the single unified reply
-    (design doc section XIV): what changed, what's new (full Activity
-    Cards), what stayed untouched -- then back to listening for more
-    feedback, never forgetting the main line."""
+    """Render a concise update; structured changes remain available to the UI."""
     aggregated = state.get("aggregated_result") or {}
     summary = aggregated.get("user_visible_summary", {})
 
-    lines = [f"已理解您的调整：{summary.get('understood_request') or state.get('user_message', '')}"]
-    if summary.get("added_categories"):
-        lines.append(f"新增体验类别：{', '.join(summary['added_categories'])}")
-    if summary.get("removed_categories"):
-        lines.append(f"减少体验类别：{', '.join(summary['removed_categories'])}")
-
-    new_candidates = aggregated.get("new_activity_candidates") or []
-    if new_candidates:
-        lines.append("")
-        lines.append("新增活动介绍：")
-        for c in new_candidates:
-            try:
-                lines.append("")
-                lines.append(TravelExperience(**c).to_activity_card_text())
-            except Exception:  # noqa: BLE001 - never let a malformed candidate break the whole reply
-                lines.append(f"- {c.get('name', '')}")
-
+    lines = ["行程已更新。"]
     changed_days = summary.get("changed_days") or []
     preserved_days = summary.get("preserved_days") or []
     if changed_days:
-        lines.append("")
-        lines.append("已调整：第" + "、".join(str(d) for d in changed_days) + "天")
+        lines.append("已调整第" + "、".join(str(d) for d in changed_days) + "天")
     if preserved_days:
-        lines.append("其余天保持不变：第" + "、".join(str(d) for d in preserved_days) + "天")
-
-    for w in aggregated.get("warnings") or []:
-        lines.append(f"⚠️ {w}")
-
-    lines.append("")
-    lines.append("以上调整是否满意？满意的话回复“确认”即可；如果还需要修改，请继续告诉我。")
+        lines.append("其他天保持不变")
+    candidates = aggregated.get("new_activity_candidates") or []
+    if candidates:
+        lines.append(f"新增 {len(candidates)} 项活动介绍已放进行程卡片。")
+    if aggregated.get("warnings"):
+        lines.append("有行程提醒，已标在改动详情中。")
+    lines.append("可继续告诉我需要调整的地方。")
     response = "\n".join(lines)
 
     update: Dict[str, Any] = {}
@@ -1063,5 +1091,12 @@ def result_aggregation_node(state: AgentState) -> Dict[str, Any]:
         "current_node": "result_aggregation",
         "need_user_input": True,
         "pending_response": response,
+        "latest_diff": {
+            "changed_scope": aggregated.get("changed_scope") or {},
+            "preserved_scope": aggregated.get("preserved_scope") or {},
+            "changed_items": aggregated.get("changed_items") or [],
+            "warnings": aggregated.get("warnings") or [],
+            "new_activity_candidates": [row.get("name", "") for row in candidates],
+        },
         "conversation_history": [_say(response)],
     }

@@ -42,6 +42,7 @@ class StepResult(BaseModel):
 class AggregatedExecutionResult(BaseModel):
     requirement_changes: Dict[str, Any] = Field(default_factory=dict)
     new_activity_candidates: List[dict] = Field(default_factory=list)
+    changed_items: List[Dict[str, Any]] = Field(default_factory=list)
     updated_itinerary: Optional[dict] = None
 
     preserved_scope: Dict[str, Any] = Field(default_factory=dict)

@@ -109,8 +109,10 @@ def test_manual_unlock_reorder_and_delete_recalculate_day(service):
     state = service.get("trip")
     assert [item.item_id for item in state.days[0].items] == ["b", "a"]
     assert state.days[0].items[1].transport_duration_minutes == 20
-    deleted = service.delete_item("trip", "day_1", "a", 3, "delete-a")
-    assert deleted["plan_version"] == 4
+    assert state.days[0].items[1].user_locked is True
+    service.set_item_lock("trip", "day_1", "a", False, 3, "unlock-after-reorder")
+    deleted = service.delete_item("trip", "day_1", "a", 4, "delete-a")
+    assert deleted["plan_version"] == 5
     assert [item.item_id for item in service.get("trip").days[0].items] == ["b"]
 
 
@@ -212,7 +214,7 @@ def test_itinerary_overview_aggregates_routes_quality_and_history(monkeypatch):
     assert payload["title"] == "北京 1 日游"
     assert payload["quality"]["score"] == 78
     assert payload["route_segments_by_day"]["day_1"][0]["status"] == "REAL_ROUTE"
-    assert [alert["type"] for alert in payload["alerts"]] == ["quality", "risk"]
+    assert [alert["type"] for alert in payload["alerts"]] == ["risk", "quality"]
 
 
 def test_trip_copy_is_independent_and_shifts_dates(service):

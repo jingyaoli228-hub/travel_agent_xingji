@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from travel_agent.execution import research_jobs
+from travel_agent.execution import research_prefetch
 from travel_agent.graph.state import new_initial_state
 from travel_agent.graph.workflow import get_compiled_graph
 
@@ -34,6 +35,11 @@ class ChatResponse(BaseModel):
     current_node: str
     need_user_input: bool
     data: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchPrefetchRequest(BaseModel):
+    session_id: str
+    travel_requirement: Dict[str, Any]
 
 
 def _config_for(session_id: str) -> Dict[str, Any]:
@@ -62,6 +68,8 @@ def _build_data_payload(values: Dict[str, Any]) -> Dict[str, Any]:
             data["intent_result"] = values["intent_result"]
         if values.get("aggregated_result"):
             data["aggregated_result"] = values["aggregated_result"]
+        if values.get("latest_diff"):
+            data["latest_diff"] = values["latest_diff"]
     return data
 
 
@@ -111,6 +119,7 @@ def run_chat_turn(
     graph = get_compiled_graph()
     config = _config_for(session_id)
     from travel_agent.persistence import database
+    user_id = database.current_user_id() or user_id
     if database.enabled():
         database.touch_session(session_id, user_id)
 
@@ -168,7 +177,8 @@ def chat(req: ChatRequest) -> ChatResponse:
     frontend uses `POST /api/chat/stream` (non-blocking research + SSE token
     streaming) instead; see `travel_agent/api/chat_stream.py`.
     """
-    return run_chat_turn(req.session_id, req.message, user_id=req.user_id)
+    from travel_agent.persistence.database import current_user_id
+    return run_chat_turn(req.session_id, req.message, user_id=current_user_id() or req.user_id)
 
 
 @router.get("/api/research/status")
@@ -190,6 +200,20 @@ def research_status(session_id: str) -> Dict[str, Any]:
     return status
 
 
+@router.post("/api/research/prefetch")
+def prefetch_research(req: ResearchPrefetchRequest) -> Dict[str, Any]:
+    """Start destination research while preference chips are on screen."""
+    from travel_agent.schemas.travel_requirement import TravelRequirement
+
+    requirement = TravelRequirement(**req.travel_requirement)
+    return research_prefetch.dispatch(req.session_id, requirement)
+
+
+@router.get("/api/research/prefetch/status")
+def prefetch_research_status(session_id: str) -> Dict[str, Any]:
+    return research_prefetch.get_status(session_id)
+
+
 @router.get("/api/session/{session_id}", response_model=ChatResponse)
 def get_session(session_id: str) -> ChatResponse:
     """Read-only fetch of the current conversation state, no new message
@@ -205,6 +229,8 @@ def get_session(session_id: str) -> ChatResponse:
 
 @router.get("/api/users/{user_id}/planning-context")
 def planning_context(user_id: str) -> Dict[str, Any]:
+    from travel_agent.persistence.database import current_user_id
+    user_id = current_user_id() or user_id
     """Small, read-only P0 projection used to prefill preference chips.
 
     The full profile remains an internal memory concern; the mini program only

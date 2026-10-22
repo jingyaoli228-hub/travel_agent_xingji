@@ -38,6 +38,8 @@ services:
       timeout: 5s
       retries: 8
       start_period: 60s
+    labels:
+      autoheal: "true"
     mem_limit: 576m
     cpus: 0.75
 
@@ -54,6 +56,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    labels:
+      autoheal: "true"
     mem_limit: 1024m
     cpus: 2.0
 
@@ -72,6 +76,8 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
+    labels:
+      autoheal: "true"
     mem_limit: 320m
     cpus: 0.5
     logging:
@@ -89,6 +95,8 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
+    labels:
+      autoheal: "true"
     mem_limit: 112m
     cpus: 0.25
     logging:
@@ -104,6 +112,14 @@ services:
     volumes:
       - ./runtime/chroma:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    labels:
+      autoheal: "true"
     mem_limit: 448m
     cpus: 0.5
     logging:
@@ -120,7 +136,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-:80}
     ports:
-      # Tunnel-only until real authentication and ownership checks exist.
+      # Keep the gateway private on the host; publish through the configured HTTPS tunnel.
       - "127.0.0.1:8080:80"
     volumes:
       - ./runtime/caddy-data:/data
@@ -128,11 +144,41 @@ services:
     depends_on:
       api: {condition: service_healthy}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    labels:
+      autoheal: "true"
     mem_limit: 64m
     cpus: 0.25
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
+
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: 30
+      AUTOHEAL_START_PERIOD: 120
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    mem_limit: 32m
+    cpus: 0.1
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.10.0
+    command: ["tunnel", "run", "--no-autoupdate", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-}"]
+    profiles: ["public"]
+    depends_on:
+      gateway: {condition: service_started}
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: 0.25
 
 volumes:
   model_cache:

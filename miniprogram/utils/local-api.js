@@ -186,7 +186,7 @@ function previewInsert(tripId, dayId, payload) {
     item_id: `added-${Date.now()}`, time: '16:10', activity: 'attraction', item_type: 'attraction',
     name: place.name, location: place.name, city: '北京', place_id: place.place_id,
     latitude: place.latitude, longitude: place.longitude, duration_minutes: Number(payload.preferred_duration_minutes || 60),
-    rating: place.rating, reason: '你刚刚加入的地点', user_locked: false,
+    rating: place.rating, reason: '你刚刚加入的地点', user_locked: Boolean(payload.user_locked),
     conflict_reason: payload.force_insert ? '强制加入：当天结束时间可能偏晚' : ''
   }
   const anchor = payload.insert_after_item_id
@@ -235,6 +235,24 @@ function reorderDay(tripId, dayId, payload) {
   day.items = payload.ordered_item_ids.map(id => byId[id]).filter(Boolean)
   trip.plan_version += 1; saveTrip(trip)
   return delay({ status: 'SUCCESS', plan_version: trip.plan_version }, 100)
+}
+
+function previewReorder(tripId, dayId, payload) {
+  const trip = readTrip(tripId)
+  const day = trip && trip.days.find(row => row.day_id === dayId)
+  if (!trip || !day) return Promise.reject(new Error('行程不存在'))
+  if (Number(payload.plan_version) !== Number(trip.plan_version)) {
+    const error = new Error('行程版本已更新'); error.statusCode = 409; return Promise.reject(error)
+  }
+  const existing = day.items.map(item => item.item_id)
+  if (payload.ordered_item_ids.length !== existing.length || new Set(payload.ordered_item_ids).size !== existing.length || payload.ordered_item_ids.some(id => !existing.includes(id))) return Promise.reject(new Error('REORDER_ITEMS_MISMATCH'))
+  const nextDay = { ...clone(day), items: payload.ordered_item_ids.map(id => clone(day.items.find(item => item.item_id === id))) }
+  const conflicts = nextDay.items.some(item => item.time > '23:00') ? ['调整后当天行程可能过晚'] : []
+  const patchId = `local-reorder-${Date.now()}`
+  trip.pending_patches = trip.pending_patches || {}
+  trip.pending_patches[patchId] = { dayId, nextDay, addedName: '', snapshot: clone(day), summary: '已手动调整当天地点顺序并重算路线' }
+  saveTrip(trip)
+  return delay({ status: 'PREVIEW', patch_id: patchId, updated_day_plan: nextDay, updated_route_segments: [], changed_items: [{ action: 'REORDER', from_item_ids: existing, ordered_item_ids: payload.ordered_item_ids }], plan_version: trip.plan_version, conflicts }, 100)
 }
 
 function setItemLock(tripId, dayId, itemId, payload) {
@@ -302,26 +320,34 @@ function getTripInsight(tripId) {
 }
 
 function parseXhs(userId, content) {
+  const sourceMatch = String(content || '').match(/https?:\/\/[^\s，,]+/)
+  const sourceUrl = sourceMatch ? sourceMatch[0].replace(/[。；;）)]+$/, '') : ''
   const text = String(content || '').replace(/https?:\/\/\S+/g, ' ')
   if (!text.trim()) return Promise.reject(new Error('链接打不开或需要登录，请把正文也粘贴进来'))
   const names = placeCatalog.filter(place => text.includes(place.name)).map(place => place.name)
   const fallback = ['故宫博物院', '景山公园', '什刹海'].filter(name => !names.includes(name))
   const rows = names.concat(fallback).slice(0, 6).map(name => {
     const place = placeCatalog.find(row => row.name === name)
-    return { name, note: `笔记中提到 ${name}`, matched: Boolean(place), checked: Boolean(place), place_id: place && place.place_id, city: '北京', source: '用户粘贴' }
+    return { name, note: `笔记中提到 ${name}`, matched: Boolean(place), checked: Boolean(place), place_id: place && place.place_id, city: '北京', source: '用户粘贴', source_url: sourceUrl }
   })
   return delay({ import_id: `xhs-${Date.now()}`, title: (text.trim().split('\n')[0] || '北京旅行笔记').slice(0, 40), places: rows }, 420)
 }
 
 function storeXhs(payload) {
+  const imports = wx.getStorageSync('travel-agent:xhs-imports') || []
+  wx.setStorageSync('travel-agent:xhs-imports', [Object.assign({}, payload, { parsed: { places: payload.places, source_url: payload.places[0] && payload.places[0].source_url } }), ...imports].slice(0, 100))
   wx.setStorageSync(`${IMPORT_PREFIX}${payload.import_id}`, payload)
   return delay({ status: 'STORED', import_id: payload.import_id, places: (payload.places || []).length }, 100)
+}
+
+function listXhsImports() {
+  return delay({ imports: wx.getStorageSync('travel-agent:xhs-imports') || [] }, 180)
 }
 
 module.exports = {
   DEMO_TRIP_ID,
   ensureDemo, postChat, getPlanningContext, getResearchStatus, getSession, getTripOverview,
-  rollbackPatch, autocompletePlaces, previewInsert, applyPatch, reorderDay, setItemLock, deleteItem,
+  rollbackPatch, autocompletePlaces, previewInsert, applyPatch, reorderDay, previewReorder, setItemLock, deleteItem,
   listTrips, deleteTrip, copyTrip,
-  getTripInsight, parseXhs, storeXhs
+  getTripInsight, parseXhs, storeXhs, listXhsImports
 }

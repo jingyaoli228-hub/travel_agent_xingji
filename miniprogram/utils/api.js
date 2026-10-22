@@ -1,16 +1,48 @@
 const config = require("../config")
-const { apiBaseUrl, trialAccessKey } = config
+const { apiBaseUrl } = config
 const localApi = config.transport === 'local-demo' ? require('./local-api') : null
 
-function request(path, options = {}) {
+function getAccessToken() {
+  if (config.authMode === 'trial' && config.trialAccessKey) return Promise.resolve('')
+  const token = wx.getStorageSync('travel-agent:access-token')
+  const expiresAt = Number(wx.getStorageSync('travel-agent:access-token-exp') || 0)
+  if (token && expiresAt - Date.now() > 60 * 1000) return Promise.resolve(token)
   return new Promise((resolve, reject) => {
+    wx.login({
+      success: login => {
+        if (!login.code) return reject(new Error('微信登录失败，请重新打开小程序'))
+        wx.request({
+          url: `${apiBaseUrl}/api/auth/wechat`, method: 'POST', data: { code: login.code },
+          header: { 'content-type': 'application/json' }, timeout: 15000,
+          success: response => {
+            if (response.statusCode < 200 || response.statusCode >= 300 || !response.data.access_token) {
+              return reject(new Error((response.data && response.data.detail) || '微信登录失败'))
+            }
+            wx.setStorageSync('travel-agent:access-token', response.data.access_token)
+            wx.setStorageSync('travel-agent:access-token-exp', Date.now() + Number(response.data.expires_in || 0) * 1000)
+            wx.setStorageSync('travel-agent:user-id', response.data.user_id)
+            resolve(response.data.access_token)
+          },
+          fail: err => reject(new Error(err.errMsg || '微信登录服务不可用'))
+        })
+      },
+      fail: err => reject(new Error(err.errMsg || '微信登录失败'))
+    })
+  })
+}
+
+function request(path, options = {}) {
+  return new Promise(async (resolve, reject) => {
+    let token = ''
+    try { if (!localApi) token = await getAccessToken() } catch (error) { reject(error); return }
     wx.request({
       url: `${apiBaseUrl}${path}`,
       method: options.method || "GET",
       data: options.data,
       header: {
         "content-type": "application/json",
-        ...(trialAccessKey ? { "X-Xingji-Trial-Key": trialAccessKey } : {}),
+        ...(config.authMode === 'trial' && config.trialAccessKey ? { "X-Xingji-Trial-Key": config.trialAccessKey } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.header || {})
       },
       timeout: options.timeout || 60000,
@@ -64,6 +96,14 @@ function getResearchStatus(sessionId) {
   return request(`/api/research/status?session_id=${encodeURIComponent(sessionId)}`, { timeout: 15000 })
 }
 
+function prefetchResearch(sessionId, travelRequirement) {
+  if (localApi && localApi.prefetchResearch) return localApi.prefetchResearch(sessionId, travelRequirement)
+  if (localApi) return Promise.resolve({ status: 'skipped' })
+  return request('/api/research/prefetch', {
+    method: 'POST', data: { session_id: sessionId, travel_requirement: travelRequirement }, timeout: 15000
+  })
+}
+
 function getSession(sessionId) {
   if (localApi) return localApi.getSession(sessionId)
   return request(`/api/session/${encodeURIComponent(sessionId)}`, { timeout: 30000 })
@@ -112,6 +152,13 @@ function reorderDay(tripId, dayId, payload) {
   })
 }
 
+function previewReorder(tripId, dayId, payload) {
+  if (localApi && localApi.previewReorder) return localApi.previewReorder(tripId, dayId, payload)
+  return request(`/api/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(dayId)}/preview-reorder`, {
+    method: 'POST', data: payload, timeout: 120000
+  })
+}
+
 function setItemLock(tripId, dayId, itemId, payload) {
   if (localApi && localApi.setItemLock) return localApi.setItemLock(tripId, dayId, itemId, payload)
   return request(`/api/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(dayId)}/items/${encodeURIComponent(itemId)}/lock`, {
@@ -132,15 +179,17 @@ function copyTrip(tripId, userId) { return localApi ? localApi.copyTrip(tripId, 
 function getTripInsight(tripId) { return localApi ? localApi.getTripInsight(tripId) : request(`/api/trips/${encodeURIComponent(tripId)}/insight`, { timeout: 30000 }) }
 function parseXhs(userId, content) { return localApi ? localApi.parseXhs(userId, content) : request('/api/imports/xhs/parse', { method: 'POST', data: { user_id: userId, content }, timeout: 120000 }) }
 function storeXhs(payload) { return localApi ? localApi.storeXhs(payload) : request('/api/imports/xhs/store', { method: 'POST', data: payload, timeout: 60000 }) }
+function listXhsImports() { return localApi && localApi.listXhsImports ? localApi.listXhsImports() : (localApi ? Promise.resolve({ imports: [] }) : request('/api/imports/xhs', { timeout: 30000 })) }
 
 function ensureDemo() {
   return localApi ? localApi.ensureDemo() : Promise.resolve({ tripId: '', overview: null })
 }
 
 module.exports = {
-  postChat, getResearchStatus, getSession, getPlanningContext, getTripOverview, rollbackPatch,
-  autocompletePlaces, previewInsert, applyPatch, reorderDay, setItemLock, deleteItem,
+  authenticate: getAccessToken,
+  postChat, getResearchStatus, prefetchResearch, getSession, getPlanningContext, getTripOverview, rollbackPatch,
+  autocompletePlaces, previewInsert, applyPatch, reorderDay, previewReorder, setItemLock, deleteItem,
   listTrips, deleteTrip, copyTrip, getTripInsight,
-  parseXhs, storeXhs, ensureDemo, isLocalMode: Boolean(localApi),
+  parseXhs, storeXhs, listXhsImports, ensureDemo, isLocalMode: Boolean(localApi),
   demoTripId: localApi ? localApi.DEMO_TRIP_ID : ''
 }

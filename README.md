@@ -157,6 +157,7 @@ intent_fusion:
 python scripts/eval_intent_accuracy.py          # Pattern+Embedding 准确率/Macro-F1（毫秒级）
 python scripts/eval_intent_accuracy.py --with-llm --limit 30   # 加入真实 LLM 路（慢，需要 Key）
 python scripts/eval_latency.py                  # Fast/Deep Path 各路延迟拆分
+python scripts/eval_domestic_golden.py          # P0 十城黄金行程：候选相关性 + Reviewer ≥85
 ```
 
 ## Stage-4：DeepSeek 迁移 + 性能优化 + 真实小红书搜索 + Web 前端
@@ -431,11 +432,16 @@ npm run dev
 
 ```bash
 pytest travel_agent/tests -v
+python scripts/eval_domestic_golden.py --json-output output/domestic-golden-latest.json
 ```
 
 测试在 HTTP/subprocess/LLM 调用边界打桩（见 `tests/conftest.py`），不发真实请求、不消耗
 DeepSeek/Kimi/Google 额度，全程离线快速运行（含 `test_api_endpoints.py`：用 FastAPI
 `TestClient` 覆盖 SSE 流式端点 + Research 后台任务 + 状态查询接口）。
+
+P0 国内黄金回归固定覆盖北京、上海、成都、西安、杭州、南京、重庆、广州、苏州和厦门；
+每条同时校验明确必去、明确排除、偏好候选占比以及生产 `ReviewerAgent` 分数。脚本任一案例
+低于 85 分即以非零状态退出，可直接作为 CI 门禁。
 
 ## 已知限制
 
@@ -496,3 +502,5 @@ TripCraft 指标。酒店候选来自 Places `lodging` 搜索，使用评价量�
 缓存 TTL：Place Details 7 天、酒店 12 小时、POI 搜索 3 小时、路线 15 分钟。
 `VITE_AMAP_JS_API_KEY` 仅供浏览器高德 JavaScript API，并应限制域名；`AMAP_WEB_SERVICE_KEY`
 仅供后端并应限制服务器 IP 与服务范围。后端 Key 从不进入前端响应或 Vite 环境。
+
+行迹小程序 P0 与逐轮代码说明见 [`docs/xingji-p0/implementation-log.md`](docs/xingji-p0/implementation-log.md)；生产手机入口密钥、Cloudflare Tunnel 和微信 HTTPS 域名登记步骤见 [`docs/xingji-p0/deployment.md`](docs/xingji-p0/deployment.md)。

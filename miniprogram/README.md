@@ -7,7 +7,7 @@
 1. 打开微信开发者工具，导入本目录。
 2. `project.config.json` 已配置当前项目的正式 AppID；如需更换主体，请同步替换为新主体的 AppID。
 3. `config.js` 默认是 `transport: "remote"`，`apiBaseUrl` 必须是微信公众平台已登记的 HTTPS request 合法域名。
-4. 本机忽略文件 `config.private.js` 保存体验网关地址和短期访问凭证；它会随本地上传包进入体验版，但不会提交到 Git。
+4. 本机忽略文件 `config.private.js` 可覆盖体验网关地址；不要在小程序包内保存服务器密钥。API 请求会通过 `wx.login` 向后端换取所有者短期令牌。
 
 ## 本地演示夹具
 
@@ -19,8 +19,8 @@
 
 ## 体验版与正式发布边界
 
-- 当前体验版已配置 HTTPS request 合法域名，并用 `X-Xingji-Trial-Key` 保护所有 `/api/*` 请求；健康检查保持公开。
-- 正式发布前仍需把短期共享体验凭证升级为 `wx.login` + openid 资源所有权校验，并把临时隧道换成长期稳定域名。
+- 生产 API 使用 `wx.login` + 后端 `code2session`，只签发给 `OWNER_OPENID` 的 12 小时令牌；行程接口同时校验 session 所有者。
+- 配置微信 AppID/AppSecret、所有者 OpenID、签名密钥和稳定 HTTPS 域名后才能启用生产服务；并需在微信公众平台登记 HTTPS request 合法域名。
 - 真实模式的 `apiBaseUrl` 不要带末尾 `/`。
 
 ## 已支持

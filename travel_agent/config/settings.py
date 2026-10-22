@@ -29,6 +29,15 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("TRIAL_ACCESS_KEY", "trial_access_key"),
     )
+    legacy_trial_auth_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("LEGACY_TRIAL_AUTH_ENABLED", "legacy_trial_auth_enabled"),
+    )
+    wechat_app_id: Optional[str] = Field(default=None, validation_alias=AliasChoices("WECHAT_APP_ID", "wechat_app_id"))
+    wechat_app_secret: Optional[str] = Field(default=None, validation_alias=AliasChoices("WECHAT_APP_SECRET", "wechat_app_secret"))
+    owner_openid: Optional[str] = Field(default=None, validation_alias=AliasChoices("OWNER_OPENID", "owner_openid"))
+    auth_token_secret: Optional[str] = Field(default=None, validation_alias=AliasChoices("AUTH_TOKEN_SECRET", "auth_token_secret"))
+    health_alert_webhook_url: Optional[str] = Field(default=None, validation_alias=AliasChoices("HEALTH_ALERT_WEBHOOK_URL", "health_alert_webhook_url"))
 
     # --- Kimi (Moonshot, OpenAI-compatible) — the LLM used by all four agents ---
     # get_llm(role=...) in config/llm.py is the single place that builds model clients;

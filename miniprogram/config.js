@@ -1,9 +1,10 @@
-// 体验版走腾讯云真实后端。访问凭证只存在本机忽略文件中，不提交到 Git。
+// API origin may be overridden by an ignored local config; authentication is wx.login only.
 let privateConfig = {}
 try { privateConfig = require('./config.private') } catch (_) {}
 
 module.exports = {
   transport: "remote",
-  apiBaseUrl: privateConfig.apiBaseUrl || "https://tapes-sleeve-sewing-msie.trycloudflare.com",
+  apiBaseUrl: privateConfig.apiBaseUrl || "https://travel.example.com",
+  authMode: privateConfig.authMode || "wechat",
   trialAccessKey: privateConfig.trialAccessKey || ""
 }

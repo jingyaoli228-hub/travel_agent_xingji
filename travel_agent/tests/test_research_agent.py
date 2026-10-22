@@ -115,6 +115,32 @@ def test_auto_select_keeps_every_explicit_requested_place(no_llm):
     assert "成都太古里" in names
 
 
+def test_auto_select_prioritizes_relevance_and_honors_explicit_exclusions(no_llm):
+    agent = ResearchOrchestratorAgent()
+    candidates = {"experiences": {
+        "culture": [
+            {"name": "地方历史博物馆", "popularity": 60, "rating": 4.6, "confidence": .95},
+            {"name": "非遗展示馆", "popularity": 55, "rating": 4.5, "confidence": .93},
+            {"name": "古城考古遗址", "popularity": 50, "rating": 4.5, "confidence": .92},
+        ],
+        "nature": [
+            {"name": "明确不想去公园", "popularity": 100, "rating": 5.0, "confidence": .99},
+            {"name": "普通城市公园", "popularity": 98, "rating": 4.9, "confidence": .99},
+        ],
+        "architecture": [{"name": "历史建筑群", "popularity": 70, "rating": 4.7, "confidence": .94}],
+        "food": [{"name": "本地菜馆", "popularity": 70, "rating": 4.5, "confidence": .9}],
+    }}
+    selected = agent.auto_select(
+        candidates, daily_count=2, days=2, preferred_types=["culture"],
+        required_names=["历史建筑群"], excluded_names=["不想去公园"],
+    )["experiences"]
+    names = [item["name"] for item in selected]
+    non_food = [item for item in selected if item.get("type") != "food"]
+    assert "明确不想去公园" not in names
+    assert "历史建筑群" in names
+    assert sum(item.get("name") in {"地方历史博物馆", "非遗展示馆", "古城考古遗址"} for item in non_food) >= 3
+
+
 def test_requested_place_family_keeps_one_real_panda_destination(no_llm):
     agent = ResearchOrchestratorAgent()
     req = TravelRequirement(destination="成都", requested_places=["大熊猫"])

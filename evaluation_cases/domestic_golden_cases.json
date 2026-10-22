@@ -1,0 +1,212 @@
+[
+  {
+    "case_id": "domestic_001_beijing_history",
+    "destination": "北京",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["culture", "architecture"],
+    "required_names": ["故宫"],
+    "excluded_names": ["环球度假区"],
+    "candidates": [
+      {"name":"故宫博物院","type":"culture","rating":4.9,"popularity":98,"confidence":0.99},
+      {"name":"中国国家博物馆","type":"culture","rating":4.8,"popularity":95,"confidence":0.98},
+      {"name":"天坛公园古建筑群","type":"architecture","rating":4.8,"popularity":92,"confidence":0.96},
+      {"name":"孔庙和国子监博物馆","type":"culture","rating":4.7,"popularity":78,"confidence":0.94},
+      {"name":"颐和园","type":"nature","rating":4.9,"popularity":96,"confidence":0.98},
+      {"name":"北京环球度假区","type":"landmark","rating":4.9,"popularity":100,"confidence":0.99},
+      {"name":"老北京涮肉","type":"food","rating":4.6,"popularity":88,"confidence":0.90},
+      {"name":"护国寺小吃","type":"food","rating":4.5,"popularity":80,"confidence":0.88}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_002_shanghai_architecture",
+    "destination": "上海",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["architecture", "local_life"],
+    "required_names": ["武康路"],
+    "excluded_names": ["迪士尼"],
+    "candidates": [
+      {"name":"武康路历史文化名街","type":"architecture","rating":4.8,"popularity":92,"confidence":0.97},
+      {"name":"外滩万国建筑博览群","type":"architecture","rating":4.9,"popularity":98,"confidence":0.99},
+      {"name":"愚园路街区漫步","type":"local_life","rating":4.7,"popularity":82,"confidence":0.94},
+      {"name":"田子坊社区街巷","type":"local_life","rating":4.5,"popularity":80,"confidence":0.91},
+      {"name":"上海博物馆","type":"culture","rating":4.8,"popularity":94,"confidence":0.98},
+      {"name":"上海迪士尼度假区","type":"landmark","rating":4.9,"popularity":100,"confidence":0.99},
+      {"name":"本帮菜馆","type":"food","rating":4.6,"popularity":86,"confidence":0.91},
+      {"name":"生煎馒头店","type":"food","rating":4.5,"popularity":83,"confidence":0.89}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_003_chengdu_relaxed",
+    "destination": "成都",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["local_life", "nature"],
+    "required_names": ["熊猫"],
+    "excluded_names": ["欢乐谷"],
+    "candidates": [
+      {"name":"成都大熊猫繁育研究基地","type":"nature","rating":4.9,"popularity":99,"confidence":0.99},
+      {"name":"人民公园鹤鸣茶社","type":"local_life","rating":4.7,"popularity":90,"confidence":0.96},
+      {"name":"望江楼公园","type":"nature","rating":4.6,"popularity":76,"confidence":0.92},
+      {"name":"玉林社区街巷","type":"local_life","rating":4.7,"popularity":79,"confidence":0.93},
+      {"name":"金沙遗址博物馆","type":"culture","rating":4.8,"popularity":88,"confidence":0.96},
+      {"name":"成都欢乐谷","type":"landmark","rating":4.8,"popularity":100,"confidence":0.98},
+      {"name":"川菜家常馆","type":"food","rating":4.7,"popularity":90,"confidence":0.93},
+      {"name":"钟水饺老店","type":"food","rating":4.6,"popularity":85,"confidence":0.91}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_004_xian_culture",
+    "destination": "西安",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["culture", "architecture"],
+    "required_names": ["兵马俑"],
+    "excluded_names": ["大唐不夜城"],
+    "candidates": [
+      {"name":"秦始皇帝陵博物院兵马俑","type":"culture","rating":4.9,"popularity":100,"confidence":0.99},
+      {"name":"陕西历史博物馆","type":"culture","rating":4.9,"popularity":98,"confidence":0.99},
+      {"name":"西安城墙","type":"architecture","rating":4.8,"popularity":96,"confidence":0.98},
+      {"name":"汉阳陵国家考古遗址公园","type":"culture","rating":4.7,"popularity":80,"confidence":0.95},
+      {"name":"华清宫","type":"landmark","rating":4.7,"popularity":88,"confidence":0.94},
+      {"name":"大唐不夜城","type":"landmark","rating":4.9,"popularity":99,"confidence":0.98},
+      {"name":"回民街泡馍馆","type":"food","rating":4.5,"popularity":90,"confidence":0.88},
+      {"name":"葫芦头老店","type":"food","rating":4.6,"popularity":78,"confidence":0.89}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_005_hangzhou_nature",
+    "destination": "杭州",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["nature", "culture"],
+    "required_names": ["西湖"],
+    "excluded_names": ["宋城"],
+    "candidates": [
+      {"name":"西湖苏堤春晓","type":"nature","rating":4.9,"popularity":100,"confidence":0.99},
+      {"name":"九溪烟树","type":"nature","rating":4.8,"popularity":88,"confidence":0.96},
+      {"name":"中国茶叶博物馆","type":"culture","rating":4.7,"popularity":75,"confidence":0.95},
+      {"name":"西溪国家湿地公园","type":"nature","rating":4.8,"popularity":92,"confidence":0.97},
+      {"name":"良渚古城遗址公园","type":"culture","rating":4.8,"popularity":84,"confidence":0.96},
+      {"name":"杭州宋城","type":"landmark","rating":4.9,"popularity":99,"confidence":0.98},
+      {"name":"龙井茶餐厅","type":"food","rating":4.6,"popularity":82,"confidence":0.90},
+      {"name":"杭帮菜馆","type":"food","rating":4.7,"popularity":89,"confidence":0.92}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_006_nanjing_history",
+    "destination": "南京",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["culture", "nature"],
+    "required_names": ["南京博物院"],
+    "excluded_names": ["欢乐谷"],
+    "candidates": [
+      {"name":"南京博物院","type":"culture","rating":4.9,"popularity":98,"confidence":0.99},
+      {"name":"明孝陵","type":"culture","rating":4.8,"popularity":92,"confidence":0.97},
+      {"name":"中山陵风景区","type":"nature","rating":4.8,"popularity":95,"confidence":0.98},
+      {"name":"六朝博物馆","type":"culture","rating":4.7,"popularity":78,"confidence":0.94},
+      {"name":"玄武湖公园","type":"nature","rating":4.7,"popularity":90,"confidence":0.95},
+      {"name":"南京欢乐谷","type":"landmark","rating":4.9,"popularity":100,"confidence":0.98},
+      {"name":"鸭血粉丝汤老店","type":"food","rating":4.6,"popularity":86,"confidence":0.91},
+      {"name":"金陵菜馆","type":"food","rating":4.7,"popularity":83,"confidence":0.92}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_007_chongqing_citywalk",
+    "destination": "重庆",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["local_life", "architecture"],
+    "required_names": ["山城巷"],
+    "excluded_names": ["欢乐谷"],
+    "candidates": [
+      {"name":"山城巷传统风貌区步道","type":"local_life","rating":4.8,"popularity":90,"confidence":0.97},
+      {"name":"李子坝轻轨穿楼观景点","type":"architecture","rating":4.7,"popularity":94,"confidence":0.96},
+      {"name":"黄桷坪涂鸦艺术街","type":"local_life","rating":4.6,"popularity":77,"confidence":0.93},
+      {"name":"重庆人民大礼堂","type":"architecture","rating":4.7,"popularity":82,"confidence":0.95},
+      {"name":"三峡博物馆","type":"culture","rating":4.8,"popularity":85,"confidence":0.96},
+      {"name":"重庆欢乐谷","type":"landmark","rating":4.9,"popularity":100,"confidence":0.98},
+      {"name":"重庆火锅老店","type":"food","rating":4.7,"popularity":95,"confidence":0.93},
+      {"name":"小面馆","type":"food","rating":4.6,"popularity":86,"confidence":0.90}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_008_guangzhou_local",
+    "destination": "广州",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["local_life", "architecture"],
+    "required_names": ["永庆坊"],
+    "excluded_names": ["长隆"],
+    "candidates": [
+      {"name":"永庆坊历史文化街区","type":"local_life","rating":4.8,"popularity":91,"confidence":0.97},
+      {"name":"沙面建筑群","type":"architecture","rating":4.8,"popularity":93,"confidence":0.98},
+      {"name":"东山口街区漫步","type":"local_life","rating":4.7,"popularity":86,"confidence":0.95},
+      {"name":"陈家祠岭南建筑","type":"architecture","rating":4.9,"popularity":94,"confidence":0.98},
+      {"name":"广东省博物馆","type":"culture","rating":4.8,"popularity":89,"confidence":0.96},
+      {"name":"广州长隆旅游度假区","type":"landmark","rating":4.9,"popularity":100,"confidence":0.99},
+      {"name":"西关早茶店","type":"food","rating":4.7,"popularity":92,"confidence":0.93},
+      {"name":"荔湾艇仔粥","type":"food","rating":4.6,"popularity":83,"confidence":0.90}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_009_suzhou_gardens",
+    "destination": "苏州",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["culture", "architecture"],
+    "required_names": ["拙政园"],
+    "excluded_names": ["乐园"],
+    "candidates": [
+      {"name":"拙政园","type":"architecture","rating":4.9,"popularity":98,"confidence":0.99},
+      {"name":"苏州博物馆本馆","type":"culture","rating":4.9,"popularity":96,"confidence":0.99},
+      {"name":"网师园夜游","type":"architecture","rating":4.8,"popularity":84,"confidence":0.96},
+      {"name":"平江路历史街区","type":"culture","rating":4.7,"popularity":92,"confidence":0.96},
+      {"name":"金鸡湖景区","type":"nature","rating":4.7,"popularity":88,"confidence":0.94},
+      {"name":"苏州乐园森林世界","type":"landmark","rating":4.9,"popularity":100,"confidence":0.98},
+      {"name":"苏帮菜馆","type":"food","rating":4.7,"popularity":86,"confidence":0.92},
+      {"name":"苏式面馆","type":"food","rating":4.6,"popularity":82,"confidence":0.90}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  },
+  {
+    "case_id": "domestic_010_xiamen_coast",
+    "destination": "厦门",
+    "days": 2,
+    "daily_count": 2,
+    "preferred_types": ["nature", "architecture"],
+    "required_names": ["鼓浪屿"],
+    "excluded_names": ["方特"],
+    "candidates": [
+      {"name":"鼓浪屿历史国际社区","type":"architecture","rating":4.9,"popularity":99,"confidence":0.99},
+      {"name":"环岛路海岸骑行","type":"nature","rating":4.8,"popularity":94,"confidence":0.97},
+      {"name":"华新路老别墅街区","type":"architecture","rating":4.7,"popularity":79,"confidence":0.94},
+      {"name":"厦门园林植物园","type":"nature","rating":4.8,"popularity":91,"confidence":0.97},
+      {"name":"厦门市博物馆","type":"culture","rating":4.6,"popularity":70,"confidence":0.92},
+      {"name":"厦门方特旅游区","type":"landmark","rating":4.9,"popularity":100,"confidence":0.98},
+      {"name":"沙茶面老店","type":"food","rating":4.7,"popularity":90,"confidence":0.92},
+      {"name":"闽南海鲜排档","type":"food","rating":4.6,"popularity":84,"confidence":0.90}
+    ],
+    "min_preferred_ratio": 0.75,
+    "min_reviewer_score": 85
+  }
+]

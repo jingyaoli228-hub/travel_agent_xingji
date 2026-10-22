@@ -68,7 +68,7 @@ Page({
         place_id: this.data.selected.place_id, plan_version: this.data.planVersion,
         request_id: `preview-${Date.now()}`, preferred_duration_minutes: duration,
         insert_after_item_id: (this.data.slots[this.data.currentSlot] || {}).afterId || null,
-        user_locked: false, force_insert: forceInsert
+        user_locked: true, force_insert: forceInsert
       })
       if (result.status === 'INSERTION_CONFLICT') this.setData({ conflict: result, conflictImpacts: [{ text: result.reason, level: 'error' }], preview: null })
       else this.setData({ preview: result, conflict: null })

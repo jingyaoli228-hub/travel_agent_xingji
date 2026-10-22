@@ -72,9 +72,9 @@
   </view>
 
   <view wx:elif="{{phase==='draft'}}" class="flow draft-state">
-    <view class="draft-score {{score>=85?'is-pass':'is-draft'}}">{{score>=85?'评审 '+score+'/100':'草稿 · 质量 '+score+'/100'}}</view>
+    <view class="draft-score {{qualityStatus==='pass'?'is-pass':'is-draft'}}">{{qualityStatus==='pass'?'评审通过 '+score+'/100':qualityStatus==='unknown'?'草稿 · 评审状态未知':'草稿 · 质量 '+score+'/100'}}</view>
     <view class="flow__title">{{requirement.destination || '行程'}}草稿</view>
-    <view wx:if="{{score<85}}" class="quality-card"><view class="quality-card__title">还不是成品：质量 {{score}} / 85</view><view wx:for="{{issues}}" wx:key="*this" class="quality-card__issue">· {{item}}</view><view class="dual-actions"><xj-button type="primary" loading="{{busy}}" bind:tap="autoFix">自动修正</xj-button><xj-button type="secondary" bind:tap="openTrip">我自己改</xj-button></view></view>
+    <view wx:if="{{qualityStatus!=='pass'}}" class="quality-card"><view class="quality-card__title">{{qualityStatus==='unknown'?'当前没有可用评审结果':'还不是成品：质量 '+score+' / 85'}}</view><view wx:for="{{issues}}" wx:key="*this" class="quality-card__issue">· {{item}}</view><view class="dual-actions"><xj-button type="primary" loading="{{busy}}" bind:tap="autoFix">自动修正</xj-button><xj-button type="secondary" bind:tap="openTrip">我自己改</xj-button></view></view>
     <view wx:for="{{draftDays}}" wx:key="day_id" class="draft-day"><view class="draft-day__head">Day {{item.day_number}} · {{item.city}}</view><view wx:for="{{item.items}}" wx:key="item_id" class="draft-item"><text>{{item.time}}</text><text>{{item.name || item.location}}</text></view></view>
     <xj-button type="primary" block bind:tap="openTrip">进入行程地图</xj-button>
   </view>

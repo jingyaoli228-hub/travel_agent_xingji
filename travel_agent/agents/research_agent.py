@@ -1409,6 +1409,7 @@ class ResearchOrchestratorAgent:
         days: int,
         preferred_types: Optional[List[str]] = None,
         required_names: Optional[List[str]] = None,
+        excluded_names: Optional[List[str]] = None,
     ) -> Dict[str, List[dict]]:
         """Pick defaults that follow the user's interests and cover regions.
 
@@ -1420,6 +1421,16 @@ class ResearchOrchestratorAgent:
         """
         by_type = candidates.get("experiences", {})
         preferred = list(dict.fromkeys(_TAG_TO_TYPE.get(t, t) for t in (preferred_types or [])))
+        excluded_keys = {_normalized_place_name(name) for name in (excluded_names or []) if _normalized_place_name(name)}
+
+        def is_excluded(item: dict) -> bool:
+            key = _normalized_place_name(item.get("name", ""))
+            return any(excluded in key or key in excluded for excluded in excluded_keys)
+
+        by_type = {
+            item_type: [item for item in items if not is_excluded(item)]
+            for item_type, items in by_type.items()
+        }
         default_order = ["landmark", "culture", "nature", "architecture", "local_life", "photography", "workshop"]
         allowed_order = list(dict.fromkeys([t for t in preferred if t != "food"] + default_order))
         # Keep newly researched/custom activities selectable (e.g. yoga,
@@ -1431,10 +1442,19 @@ class ResearchOrchestratorAgent:
             t for t in by_type if t not in allowed_order and t != "food" and t not in distractors
         )
 
+        item_type_by_name = {
+            item.get("name", ""): item_type
+            for item_type, items in by_type.items()
+            for item in items
+        }
+
         def score(item: dict) -> tuple:
             name = item.get("name", "")
+            item_type = item_type_by_name.get(name, item.get("type", ""))
+            preference_match = 1 if item_type in preferred else 0
             representative = 1 if re.search(r"长城|故宫|博物馆|公园|遗址|天安门|天坛|颐和园", name) else 0
-            return (representative, float(item.get("popularity") or 0), float(item.get("rating") or 0))
+            confidence = float(item.get("confidence") or 0.6)
+            return (preference_match, representative, confidence, float(item.get("rating") or 0), float(item.get("popularity") or 0))
 
         def food_score(item: dict) -> tuple:
             name = item.get("name", "")
@@ -1484,20 +1504,38 @@ class ResearchOrchestratorAgent:
                 selected_non_food.append(best)
                 selected_names.add(best.get("name"))
 
-        type_cycle = list(non_food_pools.keys())
-        i = 0
-        while len(selected_non_food) < target_non_food and type_cycle:
-            if all(not pool for pool in non_food_pools.values()):
-                break
-            t = type_cycle[i % len(type_cycle)]
-            pool = non_food_pools[t]
-            while pool and pool[0].get("name") in selected_names:
-                pool.pop(0)
-            if pool:
-                item = pool.pop(0)
-                selected_non_food.append(item)
-                selected_names.add(item.get("name"))
-            i += 1
+        # Fill globally by relevance instead of round-robin across every
+        # available bucket.  The old cycle diluted a history/culture request
+        # with nature/architecture simply because those buckets existed.
+        # A diminishing same-type term preserves variety only after explicit
+        # preference relevance and candidate quality have been considered.
+        type_counts: Dict[str, int] = {}
+        for item in selected_non_food:
+            item_type = item_type_by_name.get(item.get("name", ""), item.get("type", ""))
+            type_counts[item_type] = type_counts.get(item_type, 0) + 1
+
+        remaining = [
+            (item_type, item)
+            for item_type, pool in non_food_pools.items()
+            for item in pool
+            if item.get("name") not in selected_names
+        ]
+
+        def dynamic_score(row: tuple[str, dict]) -> tuple:
+            item_type, item = row
+            preferred_bonus = 4.0 if item_type in preferred else 0.0
+            diversity_bonus = 0.8 if type_counts.get(item_type, 0) == 0 else 0.0
+            repeat_penalty = type_counts.get(item_type, 0) * 0.35
+            representative, confidence, rating, popularity = score(item)[1:]
+            quality = confidence * 1.5 + min(rating / 5.0, 1.0) + min(popularity / 100.0, 1.0)
+            return (preferred_bonus + diversity_bonus + representative * 0.4 + quality - repeat_penalty, rating, popularity)
+
+        while len(selected_non_food) < target_non_food and remaining:
+            item_type, item = max(remaining, key=dynamic_score)
+            remaining.remove((item_type, item))
+            selected_non_food.append(item)
+            selected_names.add(item.get("name"))
+            type_counts[item_type] = type_counts.get(item_type, 0) + 1
 
         for item in food_pool:
             if len(selected_food) >= target_food:

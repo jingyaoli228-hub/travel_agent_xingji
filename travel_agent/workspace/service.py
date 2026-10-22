@@ -262,7 +262,7 @@ class WorkspaceService:
             state.history.append({
                 "plan_version": state.plan_version,
                 "days": [d.model_dump() for d in state.days],
-                "summary": "已加入地点并重算当天行程",
+                "summary": patch.get("summary") or "已加入地点并重算当天行程",
                 "changed_items": copy.deepcopy(patch.get("changed_items") or []),
             })
             state.days[index] = DayPlan(**patch["day"])
@@ -276,6 +276,56 @@ class WorkspaceService:
             state.mutation_results[request_id] = result
             self._save(state, version)
             return result
+
+    def preview_reorder(
+        self, trip_id: str, day_id: str, ordered_item_ids: list[str], version: int, request_id: str,
+    ) -> dict[str, Any]:
+        """Prepare a reorder as a versioned, reversible patch without saving it."""
+        with self._lock:
+            state = self._require_version(trip_id, version)
+            if request_id in state.applied_request_ids:
+                return {"status": "SUCCESS", "plan_version": state.plan_version, "idempotent": True}
+            original = self._find_day(state, day_id)
+            existing_ids = [item.item_id for item in original.items]
+            if len(ordered_item_ids) != len(set(ordered_item_ids)) or set(ordered_item_ids) != set(existing_ids):
+                raise PlaceRejected("REORDER_ITEMS_MISMATCH")
+            old_index = {item_id: index for index, item_id in enumerate(existing_ids)}
+            new_index = {item_id: index for index, item_id in enumerate(ordered_item_ids)}
+            moved_locked = [
+                item.name or item.location for item in original.items
+                if item.user_locked and old_index[item.item_id] != new_index[item.item_id]
+            ]
+            if moved_locked:
+                raise PlaceRejected(f"请先解锁再排序：{'、'.join(moved_locked)}")
+            if ordered_item_ids == existing_ids:
+                return {"status": "SUCCESS", "plan_version": state.plan_version, "idempotent": True}
+
+            day = original.model_copy(deep=True)
+            by_id = {item.item_id: item for item in day.items}
+            day.items = [by_id[item_id] for item_id in ordered_item_ids]
+            routes = self._reschedule_day(day)
+            for item in day.items:
+                if old_index[item.item_id] != new_index[item.item_id]:
+                    item.user_locked = True
+            changed = [{"action": "REORDER", "day_id": day_id,
+                        "ordered_item_ids": ordered_item_ids, "from_item_ids": existing_ids}]
+            conflicts = []
+            if any((self._hhmm(item.time) or 0) + item.duration_minutes > 24 * 60 for item in day.items):
+                conflicts.append("调整后当天行程超过 24:00")
+            if self._meal_or_return_conflict(day):
+                conflicts.append("调整后晚餐或返程时间可能过晚")
+            patch_id = f"patch_{uuid4().hex}"
+            state.pending_patches[patch_id] = {
+                "day_id": day_id, "day": day.model_dump(),
+                "routes": [route.model_dump() for route in routes], "request_id": request_id,
+                "changed_items": changed, "summary": "已手动调整当天地点顺序并重算路线",
+            }
+            self._save(state, state.plan_version)
+            return {"status": "PREVIEW", "patch_id": patch_id,
+                    "updated_day_plan": day.model_dump(),
+                    "updated_route_segments": [route.model_dump() for route in routes],
+                    "changed_items": changed, "plan_version": state.plan_version,
+                    "conflicts": conflicts}
 
     def reorder_day(
         self, trip_id: str, day_id: str, ordered_item_ids: list[str], version: int, request_id: str,
@@ -303,6 +353,9 @@ class WorkspaceService:
             by_id = {item.item_id: item for item in day.items}
             day.items = [by_id[item_id] for item_id in ordered_item_ids]
             routes = self._reschedule_day(day)
+            for item in day.items:
+                if old_index[item.item_id] != new_index[item.item_id]:
+                    item.user_locked = True
             state.route_segments_by_day[day_id] = routes
             state.plan_version += 1
             state.applied_request_ids.append(request_id)

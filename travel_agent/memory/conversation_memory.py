@@ -36,6 +36,7 @@ class ConversationMemory:
         confirmed_requirement: Optional[Dict[str, Any]] = None,
         user_choice: Optional[str] = None,
         rejected_option: Optional[str] = None,
+        user_edit: Optional[Dict[str, Any]] = None,
     ) -> ConversationMemoryRecord:
         record = self.get(session_id) or ConversationMemoryRecord(session_id=session_id)
         if original_request is not None and not record.original_request:
@@ -46,6 +47,9 @@ class ConversationMemory:
             record.user_choices.append(user_choice)
         if rejected_option:
             record.rejected_options.append(rejected_option)
+        if user_edit:
+            record.last_user_edits.append(user_edit)
+            record.last_user_edits = record.last_user_edits[-20:]
         record.current_version += 1
         self._store.set(self._key(session_id), record.model_dump())
         return record

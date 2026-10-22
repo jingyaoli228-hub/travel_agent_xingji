@@ -56,6 +56,8 @@ def _stream_turn(session_id: str, message: str, user_id: Optional[str]) -> Itera
     graph = get_compiled_graph()
     config = _config_for(session_id)
     from travel_agent.persistence import database
+    user_id = database.current_user_id() or user_id
+    user_id = database.current_user_id() or user_id
     if database.enabled():
         database.touch_session(session_id, user_id)
 

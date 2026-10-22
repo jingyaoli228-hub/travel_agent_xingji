@@ -36,6 +36,10 @@ App({
       if (overview) cache.saveTrip(overview)
     }).catch(() => {})
   },
+  onShow() {
+    const api = require('./utils/api')
+    if (!api.isLocalMode) api.authenticate().catch(() => {})
+  },
   globalData: {
     apiBaseUrl: require('./config').apiBaseUrl
   }

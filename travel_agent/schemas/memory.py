@@ -20,6 +20,7 @@ class ConversationMemoryRecord(BaseModel):
     confirmed_requirement: Dict[str, Any] = Field(default_factory=dict)
     user_choices: List[str] = Field(default_factory=list)
     rejected_options: List[str] = Field(default_factory=list)
+    last_user_edits: List[Dict[str, Any]] = Field(default_factory=list)
     current_version: int = 0
 
 

@@ -34,7 +34,7 @@ Page({
     mustGo: '', avoid: '', profileHint: '', requirement: {},
     progressText: '正在理解需求…', progressStep: 0, daySkeletons: [],
     candidates: [], selectedCount: 0, capacity: 0, overflow: 0,
-    draftDays: [], score: 0, issues: [], planningError: '',
+    draftDays: [], score: 0, qualityStatus: 'unknown', issues: [], planningError: '',
     partialDays: []
   },
 
@@ -117,6 +117,7 @@ Page({
       requirement,
       daySkeletons: Array.from({ length: days }, (_, i) => ({ day: i + 1, ready: false }))
     })
+    api.prefetchResearch(this._tripId, requirement).catch(() => {})
   },
 
   async submitClarification() {
@@ -220,7 +221,8 @@ Page({
       wx.setStorageSync('travel-agent:session-id', this._tripId)
       this.setData({
         phase: 'draft', busy: false, draftDays: itinerary.days || [], score,
-        issues: review.issues || [], progressText: score >= 85 ? `评审 ${score}/100` : `草稿 · 质量 ${score}/100`
+        qualityStatus: review.passed ? 'pass' : (Object.keys(review).length ? 'draft' : 'unknown'),
+        issues: review.issues || [], progressText: review.passed ? `评审通过 ${score}/100` : (Object.keys(review).length ? `草稿 · 质量 ${score}/100` : '草稿 · 评审状态未知')
       })
       return
     }

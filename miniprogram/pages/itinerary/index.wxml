@@ -1,17 +1,20 @@
 <view class="itinerary-page">
-  <map wx:if="{{hasTrip && !offline && !readOnly}}" class="itinerary-map"
+<map wx:if="{{hasTrip && !offline && !readOnly}}" class="itinerary-map"
     latitude="{{latitude}}" longitude="{{longitude}}" scale="13"
-    markers="{{markers}}" polyline="{{polyline}}" bindmarkertap="onMarker"
-    bindpoitap="openAddPlace"
+    markers="{{markers}}" polyline="{{polyline}}" include-points="{{includePoints}}" bindmarkertap="onMarker"
+    bindtap="openAddPlace" bindpoitap="openAddPlace"
     enable-3D="{{false}}" show-location="{{false}}"></map>
-  <canvas wx:elif="{{hasTrip}}" canvas-id="offlineRouteCanvas" class="offline-canvas"></canvas>
-  <view wx:else class="empty-map"></view>
+<canvas wx:if="{{hasTrip && (offline || readOnly)}}" canvas-id="offlineRouteCanvas" class="offline-canvas"></canvas>
+<view wx:if="{{!hasTrip}}" class="empty-map"></view>
 
   <xj-nav-bar title="{{title}}" subtitle="{{subtitle}}" left-text="我的行程"
     bind:left="onMyTrips" bind:ready="onNavReady"></xj-nav-bar>
 
   <view wx:if="{{hasTrip}}" class="quality-overlay" style="top:{{navH + 8}}px">
     <xj-quality-badge score="{{score}}" status="{{qualityStatus}}" bind:tap="openInsight"></xj-quality-badge>
+  </view>
+  <view wx:if="{{hasTrip && alerts.length && alerts[0].type==='risk'}}" class="map-risk-overlay" style="top:{{navH + 52}}px">
+    <xj-alert-bar alerts="{{alerts}}" bind:action="onAlertAction"></xj-alert-bar>
   </view>
 
   <view wx:if="{{loading}}" class="loading-panel" style="top:{{navH + 24}}px">
@@ -34,7 +37,7 @@
         text="{{tripStatus==='traveled' ? '已出行 · 只读' : offline ? '离线 · 显示 ' + cachedAt + ' 的版本' : '云端暂不可用 · 显示本地版本'}}"
         sub="{{tripStatus==='traveled' ? '原行程与对话记录保留不变' : '只读模式，联网后可修改'}}" bind:retry="retryOnline"></xj-offline-bar>
       <view wx:if="{{tripStatus==='traveled'}}" class="copy-trip" bindtap="copyAsNewTrip">复制为新行程</view>
-      <xj-alert-bar wx:else alerts="{{alerts}}" bind:action="onAlertAction"></xj-alert-bar>
+      <xj-alert-bar wx:if="{{tripStatus!=='traveled' && (!alerts.length || alerts[0].type!=='risk')}}" alerts="{{alerts}}" bind:action="onAlertAction"></xj-alert-bar>
     </view>
 
     <view wx:if="{{conversationOpen}}" class="conversation">
@@ -42,6 +45,14 @@
       <view class="panel-sub">{{title}} · 本行程</view>
       <view wx:for="{{messages}}" wx:key="index" class="message {{item.role==='user'?'is-user':'is-agent'}}">
         <text>{{item.content}}</text>
+      </view>
+      <view wx:if="{{latestDiff.changed_items.length || latestDiff.warnings.length}}" class="diff-panel">
+        <view class="changes-title">本次改动</view>
+        <view wx:for="{{latestDiff.changed_items}}" wx:key="index" class="diff-row">
+          <text class="diff-action">{{item.action==='ADD'?'新增':item.action==='REMOVE'?'移除':'调整'}}</text>
+          <text>第{{item.day}}天 · {{item.name}}{{item.before?' · '+item.before:''}}{{item.after?' → '+item.after:''}}</text>
+        </view>
+        <view wx:for="{{latestDiff.warnings}}" wx:key="index" class="diff-warning">提醒：{{item}}</view>
       </view>
       <view wx:if="{{changes.length}}" class="changes-title">行程改动</view>
       <view wx:for="{{changes}}" wx:key="plan_version" class="change-card">
@@ -55,9 +66,9 @@
     </view>
 
     <view wx:elif="{{qualityOpen}}" class="quality-panel">
-      <view class="quality-panel__score">{{score}}</view>
-      <view class="panel-title">行程评审</view>
-      <view class="panel-sub">{{score >= 85 ? '质量达标' : '草稿 · 仍需优化'}}</view>
+      <view class="quality-panel__score">{{qualityStatus==='unknown'?'—':score}}</view>
+      <view class="panel-title">{{qualityStatus==='pass'?'评审已通过':qualityStatus==='unknown'?'评审状态未知':'行程草稿'}}</view>
+      <view class="panel-sub">{{qualityStatus==='pass'?'Reviewer 已通过':qualityStatus==='unknown'?'没有可用的评审记录':'草稿 · 仍需优化'}}</view>
       <view wx:if="{{!qualityIssues.length}}" class="quality-panel__empty">暂无待处理问题</view>
       <view wx:for="{{qualityIssues}}" wx:key="index" class="quality-panel__issue">{{index + 1}}. {{item}}</view>
     </view>
@@ -72,8 +83,9 @@
         <view class="play-extra__why"><text>为什么给你排</text>{{focusItem.play.why}}</view>
         <view class="play-extra__cols"><view><text>必看</text>{{focusItem.play.mustSee.join('、')}}</view><view><text>可跳过</text>{{focusItem.play.skippable.join('、')}}</view></view>
         <view class="play-extra__tip">避坑：{{focusItem.play.tips.join('；')}}</view>
+        <view class="play-extra__after"><text>出来之后</text>{{focusItem.play.after}}</view>
         <view class="play-extra__source">资料更新于 {{focusItem.play.updatedAt}} · {{focusItem.play.sourceStatus}}</view>
-        <view class="play-extra__actions"><view bindtap="expandPlay">展开到行程</view><view data-url="{{focusItem.play.sources[0].url}}" bindtap="copyPlaySource">看原笔记 {{focusItem.play.sources.length}} 篇</view></view>
+        <view class="play-extra__actions"><view bindtap="expandPlay">展开到行程</view><view wx:if="{{focusItem.play.sources.length}}" data-url="{{focusItem.play.sources[0].url}}" bindtap="copyPlaySource">看原笔记 {{focusItem.play.sources.length}} 篇</view></view>
       </view>
     </xj-node-card>
 
@@ -95,6 +107,29 @@
       </block>
     </view>
   </xj-bottom-sheet>
+
+  <view wx:if="{{reorderPreview}}" class="reorder-preview-mask" catchtap="cancelReorderPreview">
+    <view class="reorder-preview" catchtap="keepReorderPreview">
+      <view class="reorder-preview__title">{{reorderPreview.conflicts.length?'排序后有时间冲突':'确认当天顺序'}}</view>
+      <view class="reorder-preview__summary">路线和后续时间已按新顺序预计算；确认后才会写入行程。</view>
+      <view wx:for="{{reorderPreview.conflicts}}" wx:key="index" class="reorder-preview__warning">提醒：{{item}}</view>
+      <scroll-view scroll-y class="reorder-preview__body">
+        <view wx:for="{{reorderPreview.schedule}}" wx:key="index" class="reorder-preview__row">
+          <text class="reorder-preview__time">{{item.time}}</text>
+          <view class="reorder-preview__place"><text>{{item.name}}</text><text wx:if="{{item.conflict}}" class="reorder-preview__warning">{{item.conflict}}</text></view>
+          <text wx:if="{{item.locked}}" class="reorder-preview__locked">已锁定</text>
+        </view>
+        <view wx:if="{{reorderPreview.routeSummaries.length}}" class="reorder-preview__routes">
+          <view class="changes-title">路段预估</view>
+          <view wx:for="{{reorderPreview.routeSummaries}}" wx:key="index">{{item.mode}} {{item.minutes}} 分钟 · {{item.status}}</view>
+        </view>
+      </scroll-view>
+      <view class="reorder-preview__actions">
+        <view class="reorder-preview__cancel" bindtap="cancelReorderPreview">取消</view>
+        <view class="reorder-preview__apply" bindtap="confirmReorderPreview">确认应用</view>
+      </view>
+    </view>
+  </view>
 
   <view wx:if="{{hasTrip}}" class="chat-wrap">
     <view wx:if="{{readOnly}}" class="readonly-chat" bindtap="openConversation">查看对话记录 · 只读</view>

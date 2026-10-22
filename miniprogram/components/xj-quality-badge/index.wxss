@@ -4,4 +4,5 @@
 .xj-qb__tag{padding:0 10rpx;border-radius:8rpx;font-size:var(--xj-font-mini);font-weight:700;line-height:34rpx}
 .xj-qb--draft .xj-qb__tag{background:var(--xj-warn-light);color:var(--xj-warn-text)}.xj-qb--draft .xj-qb__n{color:var(--xj-warn-text)}
 .xj-qb--fail .xj-qb__tag{background:var(--xj-error-light);color:var(--xj-error)}.xj-qb--fail .xj-qb__n{color:var(--xj-error)}
+.xj-qb--unknown .xj-qb__tag{background:var(--xj-line);color:var(--xj-text3)}.xj-qb--unknown .xj-qb__n{color:var(--xj-text3)}
 .xj-qb__c{--xj-icon-size:22rpx}

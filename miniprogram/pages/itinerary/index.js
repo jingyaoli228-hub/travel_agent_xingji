@@ -45,10 +45,10 @@ Page({
     tripId: '', navH: 64, loading: true, hasTrip: false, sending: false, offlineNoCache: false,
     title: '行迹', subtitle: '', planVersion: 0, level: 'peek',
     offline: false, readOnly: false, cachedAt: '',
-    score: 0, qualityStatus: 'draft', qualityIssues: [], alerts: [],
+    score: 0, qualityStatus: 'unknown', qualityIssues: [], alerts: [],
     days: [], currentDay: 0, dayEntries: [], daySummary: '', sorting: false, dragIndex: -1,
-    markers: [], polyline: [], latitude: 39.9042, longitude: 116.4074,
-    focusItem: null, conversationOpen: false, qualityOpen: false,
+    markers: [], polyline: [], includePoints: [], latitude: 39.9042, longitude: 116.4074,
+    focusItem: null, conversationOpen: false, qualityOpen: false, reorderPreview: null,
     messages: [], changes: [], emptyPrompts: [
       '北京 3 天，第一次去，想看经典景点',
       '周末去杭州，节奏轻松一点',
@@ -97,7 +97,7 @@ Page({
     if (!options.silent) this.setData({ loading: true })
     try {
       const overview = await api.getTripOverview(tripId)
-      cache.saveTrip(overview)
+      try { cache.saveTrip(overview) } catch (_) { wx.showToast({ title: '本地空间不足，当前在线行程仍可查看', icon: 'none' }) }
       this.applyOverview(overview, false)
     } catch (error) {
       if (error.statusCode === 404) {
@@ -119,11 +119,14 @@ Page({
   applyOverview(overview, fromCache) {
     const today = localDate()
     const rawDays = overview.days || []
+    const latestDiff = overview.latest_diff || {}
+    const changedDays = new Set((latestDiff.changed_scope && latestDiff.changed_scope.day_numbers) || [])
     const days = rawDays.map((day, index) => ({
       label: `Day ${day.day_number || index + 1}`,
       sub: day.date ? day.date.slice(5).replace('-', '/') : '',
       today: day.date === today,
       warn: false,
+      changed: changedDays.has(day.day_number || index + 1),
       dayId: day.day_id || `day_${day.day_number || index + 1}`,
       raw: day
     }))
@@ -139,13 +142,14 @@ Page({
       planVersion: overview.plan_version || 0,
       tripStatus: overview.status || 'draft',
       score: Number(quality.score || 0),
-      qualityStatus: quality.passed ? 'pass' : (Number(quality.score || 0) > 0 ? 'draft' : 'fail'),
+      qualityStatus: quality.status || (quality.passed ? 'pass' : (Number(quality.score || 0) > 0 ? 'draft' : 'unknown')),
       qualityIssues: quality.issues || [],
       alerts: overview.alerts || [],
       days,
       currentDay,
       messages: overview.conversation_history || [],
       changes: overview.changes || [],
+      latestDiff: Object.assign({ changed_items: [], warnings: [] }, latestDiff),
       cachedAt: fromCache && overview.cached_at ? this.formatCacheTime(overview.cached_at) : '',
       readOnly: this.data.offline || fromCache || overview.status === 'traveled',
       offlineNoCache: false
@@ -229,7 +233,7 @@ Page({
     this._offlineGeometry = { markers, polyline }
     this.setData({
       currentDay: index, dayEntries: entries, daySummary: summary,
-      markers, polyline, latitude: center.latitude, longitude: center.longitude,
+      markers, polyline, includePoints: mapPoints, latitude: center.latitude, longitude: center.longitude,
       focusItem: null, conversationOpen: false, qualityOpen: false
     }, () => { if (this.data.offline || this.data.readOnly) setTimeout(() => this.drawOfflineRoute(), 30) })
   },
@@ -244,7 +248,18 @@ Page({
     const entry = this.data.dayEntries.find(row => row.node.item_id === itemId)
     if (!entry) return
     const node = entry.node
-    const play = playcards.find(card => node.displayName.indexOf(card.name) >= 0 || card.name.indexOf(node.displayName) >= 0)
+    const entryIndex = this.data.dayEntries.findIndex(row => row.node.item_id === itemId)
+    const nextEntry = this.data.dayEntries[entryIndex + 1]
+    const afterText = nextEntry
+      ? `离开后前往${nextEntry.node.displayName}${nextEntry.transit ? `（${nextEntry.transit.text}）` : ''}`
+      : (this.data.days[this.data.currentDay].raw.accommodation
+        ? `当天最后一站；之后可返回住宿点：${this.data.days[this.data.currentDay].raw.accommodation}`
+        : '当天最后一站；可按体力安排返程或休息')
+    const rawPlay = cache.loadPlayCard(node.displayName) || playcards.find(card => node.displayName.indexOf(card.name) >= 0 || card.name.indexOf(node.displayName) >= 0)
+    const play = rawPlay ? Object.assign({}, rawPlay, {
+      sources: (rawPlay.sources || []).filter(source => source.url && source.url !== 'https://www.xiaohongshu.com/' && source.url !== 'https://www.xiaohongshu.com'),
+      sourceStatus: '内置预置卡 · 外部来源待核验', after: afterText
+    }) : null
     this.setData({
       focusItem: Object.assign({}, node, {
         play: play || null,
@@ -252,6 +267,20 @@ Page({
       }),
       conversationOpen: false, qualityOpen: false, level: 'half'
     })
+    if (play) {
+      api.listXhsImports().then(result => {
+        const imported = (result.imports || []).flatMap(row => ((row.parsed || {}).places || []).map(place => ({ place, row })))
+          .find(entry => entry.place.name === node.displayName && (entry.place.source_url || entry.row.parsed.source_url))
+        if (!imported || !this.data.focusItem || this.data.focusItem.item_id !== node.item_id) return
+        const source = imported.place.source_url || imported.row.parsed.source_url
+        const enriched = Object.assign({}, play, {
+          sourceStatus: '你的导入笔记',
+          sources: [{ title: imported.row.content.slice(0, 60) || '你导入的小红书笔记', url: source }]
+        })
+        cache.savePlayCard(Object.assign({}, enriched, { name: play.name, after: undefined }))
+        this.setData({ 'focusItem.play': enriched })
+      }).catch(() => {})
+    }
   },
 
   onCloseNode() { this.setData({ focusItem: null }) },
@@ -324,16 +353,52 @@ Page({
     if (!changed) return
     const day = this.data.days[this.data.currentDay]
     try {
-      await api.reorderDay(this.data.tripId, day.dayId, {
+      const preview = await api.previewReorder(this.data.tripId, day.dayId, {
         ordered_item_ids: entries.map(row => row.node.item_id),
         plan_version: this.data.planVersion, request_id: `reorder-${Date.now()}`
       })
+      if (preview.status !== 'PREVIEW') return this.setData({ dayEntries: original })
+      const schedule = ((preview.updated_day_plan || {}).items || []).map(item => ({
+        time: item.time || '待定', name: item.name || item.location || '未命名地点',
+        locked: Boolean(item.user_locked), conflict: item.conflict_reason || ''
+      }))
+      const routeSummaries = (preview.updated_route_segments || []).map(route => ({
+        mode: (MODE[route.travel_mode] || MODE.TRANSIT).label,
+        minutes: Math.round(Number(route.duration_minutes || 0)),
+        status: route.status === 'REAL_ROUTE' ? '实际路线' : '估算路线'
+      }))
+      this.setData({ dayEntries: original, reorderPreview: Object.assign({}, preview, { conflicts: preview.conflicts || [], schedule, routeSummaries }) })
+    } catch (error) {
+      this.setData({ dayEntries: original })
+      await this.handleWorkspaceError(error)
+    }
+  },
+
+  cancelReorderPreview() { this.setData({ reorderPreview: null }) },
+  keepReorderPreview() {},
+
+  async confirmReorderPreview() {
+    const preview = this.data.reorderPreview
+    if (!preview) return
+    try {
+      await api.applyPatch(this.data.tripId, {
+        patch_id: preview.patch_id, plan_version: preview.plan_version,
+        request_id: `apply-${preview.patch_id}`
+      })
+      this.setData({ reorderPreview: null })
       await this.loadOverview({ silent: true })
       this.selectComponent('#toast').show({ text: '顺序和当天交通已重算', payload: { undo: true } })
     } catch (error) {
-      this.setData({ dayEntries: original })
-      wx.showToast({ title: error.message || '排序失败', icon: 'none' })
+      this.setData({ reorderPreview: null })
+      await this.handleWorkspaceError(error)
     }
+  },
+
+  async handleWorkspaceError(error) {
+    if (error.statusCode === 409) {
+      await this.loadOverview({ silent: true })
+      wx.showToast({ title: '行程已更新，已刷新到最新版本', icon: 'none' })
+    } else wx.showToast({ title: error.message || '操作失败', icon: 'none' })
   },
 
   openAddPlace(event) {
@@ -389,7 +454,11 @@ Page({
     try {
       const userId = wx.getStorageSync('travel-agent:user-id') || this.data.tripId
       const result = await api.postChat(this.data.tripId, value, userId)
-      this.setData({ messages: this.data.messages.concat({ role: 'assistant', content: result.response || '已收到。' }) })
+      const latestDiff = (result.data && result.data.latest_diff) || {}
+      this.setData({
+        latestDiff,
+        messages: this.data.messages.concat({ role: 'assistant', content: result.response || '行程已更新。' })
+      })
       await this.loadOverview({ silent: true })
       this.selectComponent('#toast').show({ text: '已根据对话更新行程', payload: { undo: true } })
     } catch (error) {
@@ -413,7 +482,9 @@ Page({
   onToastAction(event) { if (event.detail.payload && event.detail.payload.undo) this.undoLatestChange() },
   onViewChange(event) {
     const change = this.data.changes[event.currentTarget.dataset.index]
-    wx.showToast({ title: (change && change.summary) || '行程改动', icon: 'none' })
+    const items = (change && change.changed_items) || []
+    const summary = items.map(item => item.name || item.action).filter(Boolean).join('、')
+    wx.showToast({ title: summary || (change && change.summary) || '行程改动', icon: 'none' })
   },
 
   onAlertAction(event) {
