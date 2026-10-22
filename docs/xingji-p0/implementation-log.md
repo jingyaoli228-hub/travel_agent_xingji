@@ -313,3 +313,7 @@
 ### 验证与限制
 
 定向回归 54 passed，包含作息规则/LLM 路径、必去点安排、跨片区日程、邻近餐厅、研究候选、预览鉴权和小程序静态契约；Python 编译、`node --check miniprogram/pages/planning/index.js`、`git diff --check` 均通过。pytest 有两条依赖版本警告，不影响结果。区域和距离优化依赖高德返回的地点片区及坐标；如果数据源本身没有坐标，餐厅会按同片区/原候选顺序回退，不能承诺精确距离。此版仍沿用体验凭证兼容模式，只能作为微信受限体验版，不等同正式 OpenID 鉴权或正式发布。
+
+### 实际发布结果
+
+2026-10-22：后端 release `20261022-150800-p0-feedback` 已原子切换为 current，API、worker、gateway、autoheal 与依赖运行正常，ready 健康接口返回 HTTP 200；Postgres 数据挂载保持原路径，现有 `/legacy-data` 目录继续复用，打包内种子数据另留在新 release 的 `data-package-seed`，未覆盖运行数据。微信开发者工具 CLI 对 AppID `wx3e3c60840720f755` 上传 `0.9.7` 成功，包大小 491,553 bytes，输出 `√ upload`。源码与说明已推送 GitHub `main`，提交 `3e66be6`。本次为体验版更新，不是正式提审/发布；登录仍是受限体验凭证兼容模式。
