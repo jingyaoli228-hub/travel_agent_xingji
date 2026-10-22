@@ -51,3 +51,14 @@ def test_play_card_shows_after_destination_and_unknown_quality_is_not_zero():
     assert "出来之后" in wxml
     assert "afterText" in js
     assert "state==='unknown'?'—':score" in badge
+
+
+def test_wake_choice_is_native_and_itinerary_list_scrolls_before_full_sheet():
+    planning = _read("miniprogram/pages/planning/index.wxml")
+    planning_js = _read("miniprogram/pages/planning/index.js")
+    sheet = _read("miniprogram/components/xj-bottom-sheet/index.wxml")
+
+    assert 'bindtap="chooseWake"' in planning
+    assert 'currentTarget.dataset.index' in planning_js
+    assert "起床时间：${wakeOption.time}" in planning_js
+    assert 'scroll-y="{{!scrollDisabled}}"' in sheet

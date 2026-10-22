@@ -70,6 +70,48 @@ def _minutes_to_hhmm(minutes: int) -> str:
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
+def _name_key(value: Any) -> str:
+    return re.sub(r"[^\w\u4e00-\u9fff]", "", str(value or "")).lower()
+
+
+def _matches_required(item: dict, required_names: List[str]) -> bool:
+    item_name = _name_key(item.get("name"))
+    if not item_name:
+        return False
+    aliases = {"杭钢": "杭州钢铁"}
+    for name in required_names:
+        key = _name_key(name)
+        expanded = aliases.get(key[:2], "") + key[2:] if key.startswith("杭钢") else key
+        alias_match = key.startswith("杭钢") and "杭州钢铁" in item_name
+        if key and (key in item_name or item_name in key or (expanded and expanded in item_name) or alias_match):
+            return True
+    return False
+
+
+def _nearest_candidate(pool: List[dict], origin: Optional[dict]) -> Optional[dict]:
+    if not pool:
+        return None
+    if origin and origin.get("latitude") is not None and origin.get("longitude") is not None:
+        lat, lon = float(origin["latitude"]), float(origin["longitude"])
+        located = [row for row in pool if row.get("latitude") is not None and row.get("longitude") is not None]
+        if located:
+            chosen = min(located, key=lambda row: (float(row["latitude"]) - lat) ** 2 + (float(row["longitude"]) - lon) ** 2)
+            pool.remove(chosen)
+            return chosen
+    return pool.pop(0)
+
+
+def _spread_required(items: List[dict], day_numbers: List[int], daily_count: int) -> Dict[int, List[dict]]:
+    distributed = {day: [] for day in day_numbers}
+    if not day_numbers:
+        return distributed
+    slots_per_day = max(1, daily_count)
+    for index, item in enumerate(items):
+        day_index = min(index // slots_per_day, len(day_numbers) - 1)
+        distributed[day_numbers[day_index]].append(item)
+    return distributed
+
+
 _FALLBACK_MODE = {"transit": "drive", "drive": "transit", "walk": "drive"}
 
 
@@ -191,14 +233,16 @@ class PlannerAgent:
         food_pool: List[dict],
         food_fallback: List[dict],
         transport_mode: str,
+        required_pool: Optional[List[dict]] = None,
     ) -> DayPlan:
-        daily_count = requirement.daily_attraction_count or 3
+        daily_count = max(requirement.daily_attraction_count or 3, len(required_pool or []))
         wake = _hhmm_to_minutes(requirement.wake_up_time or "08:30")
         latest_return = _hhmm_to_minutes(requirement.latest_return_time or "21:30")
         num_travelers = requirement.num_travelers or 1
 
         items: List[ItineraryItem] = []
         current_location = "酒店"
+        current_experience: Optional[dict] = None
         t = wake
 
         items.append(
@@ -213,7 +257,8 @@ class PlannerAgent:
         afternoon_n = daily_count - morning_n
 
         def _add_experience(t: int, current_location: str) -> Tuple[int, str]:
-            e = self._next_from_pools(non_food_pool, non_food_fallback)
+            nonlocal current_experience
+            e = required_pool.pop(0) if required_pool else self._next_from_pools(non_food_pool, non_food_fallback)
             if e is None:
                 return t, current_location
             route = _route(current_location, e["location"], transport_mode)
@@ -228,13 +273,14 @@ class PlannerAgent:
                     **_place_fields(e),
                 )
             )
+            current_experience = e
             return t + e.get("duration_minutes", 90) + route["duration_minutes"], e["location"]
 
         for _ in range(morning_n):
             t, current_location = _add_experience(t, current_location)
 
         lunch_t = max(t, wake + 4 * 60, 12 * 60)
-        meal = self._next_from_pools(food_pool, food_fallback) or {
+        meal = _nearest_candidate(food_pool if food_pool else food_fallback, current_experience) or {
             "name": "当地特色餐厅", "cost": 100, "location": requirement.destination, "type": "food",
         }
         route = _route(current_location, meal.get("location", requirement.destination), transport_mode)
@@ -250,12 +296,13 @@ class PlannerAgent:
         )
         t = lunch_t + 75 + 15
         current_location = meal.get("location", requirement.destination)
+        current_experience = meal
 
         for _ in range(afternoon_n):
             t, current_location = _add_experience(t, current_location)
 
         dinner_t = max(t, lunch_t + 4 * 60, 18 * 60)
-        meal = self._next_from_pools(food_pool, food_fallback) or {
+        meal = _nearest_candidate(food_pool if food_pool else food_fallback, current_experience) or {
             "name": "当地特色餐厅", "cost": 100, "location": requirement.destination, "type": "food",
         }
         route = _route(current_location, meal.get("location", requirement.destination), transport_mode)
@@ -322,6 +369,8 @@ class PlannerAgent:
 
         non_food_all = [e for e in selected_experiences if e.get("type") != "food" and e.get("name") not in already_used]
         food_all = [e for e in selected_experiences if e.get("type") == "food" and e.get("name") not in already_used]
+        required_pool = [e for e in non_food_all if _matches_required(e, requirement.requested_places or [])]
+        non_food_all = [e for e in non_food_all if e not in required_pool]
 
         # Brand-new candidates (never scheduled anywhere in the previous
         # itinerary -- e.g. what Research just added because the user asked
@@ -345,11 +394,17 @@ class PlannerAgent:
         for allocation in self._plan_regions(requirement):
             for day_num in allocation["days"]:
                 region_by_day[day_num] = allocation["region"]
+        if not requirement.region_split_confirmed and non_food_pools:
+            discovered_regions = list(non_food_pools)
+            for day_num in range(1, (requirement.duration_days or 1) + 1):
+                region_by_day[day_num] = discovered_regions[(day_num - 1) % len(discovered_regions)]
         if region_overrides:
             # Per-day override wins over the global split -- and, critically,
             # `requirement.region_preferences` itself is never touched, so a
             # later full replan isn't polluted by this one-off swap.
             region_by_day.update(region_overrides)
+
+        required_by_day = _spread_required(required_pool, sorted(target_set), requirement.daily_attraction_count or 3)
 
         rebuilt_days: List[DayPlan] = []
         for day in previous_itinerary.days:
@@ -362,6 +417,7 @@ class PlannerAgent:
                     day.day_number, region, requirement,
                     non_food_pools.get(region, []), non_food_fallback,
                     food_pools.get(region, []), food_fallback, transport_mode,
+                    required_by_day.get(day.day_number, []),
                 )
             )
         return Itinerary(days=sorted(rebuilt_days, key=lambda d: d.day_number))
@@ -444,6 +500,8 @@ class PlannerAgent:
 
         non_food_all = [e for e in selected_experiences if e.get("type") != "food"]
         food_all = [e for e in selected_experiences if e.get("type") == "food"]
+        required_pool = [e for e in non_food_all if _matches_required(e, requirement.requested_places or [])]
+        non_food_all = [e for e in non_food_all if e not in required_pool]
         if prefer_cheap:
             non_food_all.sort(key=lambda e: e.get("cost") or 0)
             food_all.sort(key=lambda e: e.get("cost") or 0)
@@ -457,6 +515,17 @@ class PlannerAgent:
         transport_mode = self._preferred_mode(profile_hint)
 
         region_allocations = self._plan_regions(requirement)
+        if not requirement.region_split_confirmed and non_food_pools:
+            discovered_regions = list(non_food_pools)
+            region_allocations = [
+                {"region": discovered_regions[(day_num - 1) % len(discovered_regions)], "days": [day_num]}
+                for day_num in range(1, (requirement.duration_days or 1) + 1)
+            ]
+        required_by_day = _spread_required(
+            required_pool,
+            list(range(1, (requirement.duration_days or 1) + 1)),
+            requirement.daily_attraction_count or 3,
+        )
         day_plans: List[DayPlan] = []
         for allocation in region_allocations:
             region = allocation["region"]
@@ -467,6 +536,7 @@ class PlannerAgent:
                     self._build_day(
                         day_num, region, requirement, region_non_food, non_food_fallback,
                         region_food, food_fallback, transport_mode,
+                        required_by_day.get(day_num, []),
                     )
                 )
 

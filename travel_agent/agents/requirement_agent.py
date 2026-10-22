@@ -197,6 +197,9 @@ class RequirementAgent:
             parsed = json.loads(content)
             updates = parsed.get("updates") if isinstance(parsed, dict) else None
             if isinstance(updates, dict):
+                explicit_wake = re.search(r"起床时间\s*[：:]\s*(\d{1,2}:\d{2})", user_message)
+                if explicit_wake:
+                    updates["wake_up_time"] = explicit_wake.group(1)
                 return self._merge_patch(requirement, updates)
         except Exception:
             pass
@@ -239,6 +242,13 @@ class RequirementAgent:
                     merged[key] = py_type(value)
                 except (TypeError, ValueError):
                     continue
+        # Explicit clock values from the preference UI take precedence over
+        # probabilistic patch extraction so the selected wake option sticks.
+        explicit_wake = re.search(r"起床时间\s*[：:]\s*(\d{1,2}:\d{2})", " ".join(str(v) for v in updates.values()))
+        if explicit_wake:
+            hour, minute = map(int, explicit_wake.group(1).split(":"))
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                merged["wake_up_time"] = f"{hour:02d}:{minute:02d}"
         if pace_was_updated and "daily_attraction_count" not in updates:
             merged["daily_attraction_count"] = {"特种兵": 5, "平衡": 3, "松弛": 2}.get(merged.get("pace"), 3)
             merged["wake_up_time"] = "07:30" if merged.get("pace") == "特种兵" else "08:30"
@@ -302,6 +312,14 @@ class RequirementAgent:
                 break
         if requirement.pace is None and any(kw in text for kw in _PACE_KEYWORDS.get("特种兵", [])):
             requirement.pace = "特种兵"
+
+        # The preference screen sends an explicit clock time so the wake
+        # selection never depends on an LLM inferring "早起/晚起" semantics.
+        wake_match = re.search(r"起床时间\s*[：:]\s*(\d{1,2}:\d{2})", text)
+        if wake_match:
+            hour, minute = map(int, wake_match.group(1).split(":"))
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                requirement.wake_up_time = f"{hour:02d}:{minute:02d}"
 
         # interests
         found_interests: List[str] = list(requirement.interests)

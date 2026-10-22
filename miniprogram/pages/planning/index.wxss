@@ -3,6 +3,7 @@
 
 .candidate__body{flex:1;min-width:0;padding-right:var(--xj-space-2)}
 .candidate__desc{display:block;margin-top:var(--xj-space-2);color:var(--xj-text2);font-size:var(--xj-font-sm);line-height:1.55}
+.wake-option{padding:var(--xj-space-2) var(--xj-space-3);border:2rpx solid var(--xj-line);border-radius:var(--xj-radius-pill);background:var(--xj-card);font-size:var(--xj-font-sm);color:var(--xj-text2)}.wake-option.is-selected{border-color:var(--xj-primary);background:var(--xj-primary);color:var(--xj-card);font-weight:var(--xj-weight-bold)}
 
 .clarification-card{padding:var(--xj-space-4);margin-bottom:var(--xj-space-3);border:2rpx solid var(--xj-line);border-radius:var(--xj-radius-md);background:var(--xj-card)}
 .clarification-card .section-title{margin-top:0}

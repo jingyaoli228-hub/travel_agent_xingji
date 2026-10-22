@@ -2,7 +2,7 @@ const api = require('../../utils/api')
 
 const STYLE_OPTIONS = ['人文古迹', '博物馆', '美食', '拍照', '自然']
 const PACE_OPTIONS = ['特种兵', '适中', '松弛']
-const WAKE_OPTIONS = ['早起', '正常', '晚起']
+const WAKE_OPTIONS = [{ label: '早起', time: '07:00' }, { label: '正常', time: '08:30' }, { label: '晚起', time: '10:00' }]
 const STYLE_TO_INTEREST = {
   '人文古迹': '人文', '博物馆': '人文', '美食': '美食', '拍照': '摄影', '自然': '自然'
 }
@@ -24,13 +24,19 @@ function requirementDays(requirement) {
   return Number((requirement && requirement.duration_days) || 3)
 }
 
+function matchesRequiredName(candidate, requested) {
+  const item = String(candidate || '').replace(/[\s·・（）()\-—_/]/g, '')
+  const name = String(requested || '').replace(/[\s·・（）()\-—_/]/g, '')
+  return Boolean(name && (item.includes(name) || name.includes(item) || (name.startsWith('杭钢') && item.includes('杭州钢铁'))))
+}
+
 Page({
   data: {
     navH: 64, phase: 'input', prompt: '', busy: false,
     clarificationText: '', clarificationReply: '',
     styles: STYLE_OPTIONS.map(label => ({ label, selected: false })),
     paces: PACE_OPTIONS.map(label => ({ label, selected: label === '适中' })),
-    wakes: WAKE_OPTIONS.map(label => ({ label, selected: label === '正常' })),
+    wakes: WAKE_OPTIONS.map(item => ({ ...item, selected: item.label === '正常' })),
     mustGo: '', avoid: '', profileHint: '', requirement: {},
     progressText: '正在理解需求…', progressStep: 0, daySkeletons: [],
     candidates: [], selectedCount: 0, capacity: 0, overflow: 0,
@@ -80,7 +86,7 @@ Page({
   },
   toggleStyle(event) { this.toggleOption('styles', Number(event.detail.value)) },
   choosePace(event) { this.toggleOption('paces', Number(event.detail.value)) },
-  chooseWake(event) { this.toggleOption('wakes', Number(event.detail.value)) },
+  chooseWake(event) { this.toggleOption('wakes', Number(event.currentTarget.dataset.index)) },
 
   async submitIntent() {
     const prompt = this.data.prompt.trim()
@@ -141,10 +147,11 @@ Page({
     if (this.data.busy) return
     const styles = this.selectedLabel('styles')
     const pace = this.selectedLabel('paces')[0] || '适中'
-    const wake = this.selectedLabel('wakes')[0] || '正常'
+    const wakeOption = this.data.wakes.find(item => item.selected) || this.data.wakes[1]
+    const wake = wakeOption.label
     const interests = [...new Set(styles.map(label => STYLE_TO_INTEREST[label] || label))]
     const details = [
-      interests.length ? `兴趣：${interests.join('、')}` : '', `节奏：${pace}`, `作息：${wake}`,
+      interests.length ? `兴趣：${interests.join('、')}` : '', `节奏：${pace}`, `作息：${wake}；起床时间：${wakeOption.time}`,
       this.data.mustGo.trim() ? `必去：${this.data.mustGo.trim()}` : '必去：无',
       this.data.avoid.trim() ? `不想去：${this.data.avoid.trim()}` : '不想去：无'
     ].filter(Boolean).join('；')
@@ -199,7 +206,7 @@ Page({
       const capacity = days * dailyCount + days * 2
       const mustNames = this.data.mustGo.split(/[、,，]/).map(value => value.trim()).filter(Boolean)
       if (candidates.length > capacity) {
-        const rows = candidates.map(item => ({ ...item, choice: mustNames.some(name => item.name.includes(name)) ? 'must' : 'want' }))
+        const rows = candidates.map(item => ({ ...item, choice: mustNames.some(name => matchesRequiredName(item.name, name)) ? 'must' : 'want' }))
         this.stopProgress()
         this.setData({
           phase: 'selection', busy: false, candidates: rows,
@@ -232,6 +239,10 @@ Page({
 
   cycleChoice(event) {
     const index = Number(event.currentTarget.dataset.index)
+    if (this.data.candidates[index] && this.data.candidates[index].choice === 'must') {
+      wx.showToast({ title: '必去地点会保留在行程中', icon: 'none' })
+      return
+    }
     const order = ['must', 'want', 'optional', 'exclude']
     const candidates = this.data.candidates.map((item, idx) => idx === index
       ? { ...item, choice: order[(order.indexOf(item.choice) + 1) % order.length] } : item)

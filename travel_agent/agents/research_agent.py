@@ -213,6 +213,18 @@ def _normalized_place_name(value: str) -> str:
     return re.sub(r"[\s·・（）()\-—_/]", "", (value or "").lower())
 
 
+def _place_matches_request(requested: str, candidate: str) -> bool:
+    requested_key = _normalized_place_name(requested)
+    candidate_key = _normalized_place_name(candidate)
+    aliases = {"杭钢": "杭州钢铁"}
+    expanded = aliases.get(requested_key[:2], "") + requested_key[2:] if requested_key.startswith("杭钢") else requested_key
+    return bool(requested_key and (
+        requested_key in candidate_key or candidate_key in requested_key
+        or (expanded and expanded in candidate_key)
+        or (requested_key.startswith("杭钢") and "杭州钢铁" in candidate_key)
+    ))
+
+
 def _place_topic_aliases(value: str) -> List[str]:
     key = _normalized_place_name(value)
     aliases = [key] if key else []
@@ -393,7 +405,7 @@ class ResearchOrchestratorAgent:
                 non_travel = -6 if re.search(r"别墅|小区|公寓|售楼|公司|工作室|酒店|宾馆", name) else 0
                 return (
                     official_match + travel_name + non_travel,
-                    3 if name_key == requested_key else 2 if requested_key in name_key else 1 if name_key in requested_key else 0,
+                    4 if _place_matches_request(requested, name) else 3 if name_key == requested_key else 2 if requested_key in name_key else 1 if name_key in requested_key else 0,
                     -abs(len(name_key) - len(requested_key)),
                     float(row.get("rating") or 0),
                 )
@@ -538,7 +550,7 @@ class ResearchOrchestratorAgent:
             # category: requested POIs first, then enough activities/meals to
             # build every day.  The ordering remains Agent-authored.
             for requested in req.requested_places:
-                match = next((item for item in experiences if _normalized_place_name(requested) in _normalized_place_name(item.name)), None)
+                match = next((item for item in experiences if _place_matches_request(requested, item.name)), None)
                 if match and match.name not in selected_names:
                     selected.insert(0, match); selected_names.add(match.name)
             for item in experiences:
@@ -556,6 +568,7 @@ class ResearchOrchestratorAgent:
     def _run_plan(
         self, req: TravelRequirement, plan: List[Tuple[str, str, Optional[str]]], exclude: List[str],
         limit_per_query: int = 6, region: Optional[str] = None,
+        region_by_query: Optional[Dict[str, str]] = None,
     ) -> List[TravelExperience]:
         """Run every (tag, query, place_type) in `plan` concurrently.
 
@@ -580,7 +593,8 @@ class ResearchOrchestratorAgent:
             futures = [
                 executor.submit(
                     self._experience_worker, req, tag, query, place_type,
-                    exclude=exclude, limit=limit_per_query if tag != "food" else limit_per_query + 2, region=region,
+                    exclude=exclude, limit=limit_per_query if tag != "food" else limit_per_query + 2,
+                    region=(region_by_query or {}).get(query, region),
                 )
                 for tag, query, place_type in plan
             ]
@@ -1085,6 +1099,7 @@ class ResearchOrchestratorAgent:
                 dest_label=dest_label, region_candidate=region_candidate, tag_query_map=_TAG_QUERY_MAP,
             )
             plan = plan + [(tag, query, place_type) for query, place_type, tag in rag_plan]
+            area_by_query: Dict[str, str] = {}
 
             # Search a different theme in each Agent-chosen area.  We keep a
             # global category baseline as well, so an imperfect area choice
@@ -1100,7 +1115,9 @@ class ResearchOrchestratorAgent:
                 for index, area in enumerate(strategy.areas):
                     tag = focus_types[index % len(focus_types)] if focus_types else _BASELINE_TAGS[index % len(_BASELINE_TAGS)]
                     template, place_type = _TAG_QUERY_MAP.get(tag, [("{dest} 旅行体验", None)])[0]
-                    area_plan.append((tag, template.format(dest=f"{req.destination} {area}"), place_type))
+                    query = template.format(dest=f"{req.destination} {area}")
+                    area_plan.append((tag, query, place_type))
+                    area_by_query[query] = area
                 # Five global category probes + up to five geographically
                 # diverse probes fit the existing bounded QPS/latency budget.
                 plan = plan[:5] + area_plan[:5]
@@ -1115,7 +1132,10 @@ class ResearchOrchestratorAgent:
             plan = deduped_plan[:10]
 
             experiences.extend(
-                self._run_plan(req, plan, exclude=base_exclude + [e.name for e in experiences], region=region)
+                self._run_plan(
+                    req, plan, exclude=base_exclude + [e.name for e in experiences], region=region,
+                    region_by_query=area_by_query if region is None else None,
+                )
             )
         experiences = self._dedupe_candidate_pool(experiences, req)
         self.enrich_activity_cards(experiences, req)
@@ -1482,7 +1502,7 @@ class ResearchOrchestratorAgent:
             requested_key = _normalized_place_name(requested)
             match = next((
                 item for item in all_non_food
-                if requested_key and requested_key in _normalized_place_name(item.get("name", ""))
+                if _place_matches_request(requested, item.get("name", ""))
             ), None)
             if match is None:
                 match = next((

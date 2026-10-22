@@ -91,6 +91,11 @@ def test_preference_turn_extracts_requested_and_excluded_places(no_llm):
     assert "摄影" in result.requirement.interests
 
 
+def test_preference_turn_preserves_explicit_wake_time(no_llm):
+    result = RequirementAgent().run("作息：早起；起床时间：07:00")
+    assert result.requirement.wake_up_time == "07:00"
+
+
 def test_chengdu_is_city_research_not_user_region_split(no_llm):
     assessment = RequirementAgent().assess_destination_complexity(TravelRequirement(destination="成都"))
     assert assessment.is_complex is False
@@ -142,6 +147,13 @@ def test_llm_patch_merge_drops_unknown_fields(monkeypatch):
     agent = RequirementAgent()
     result = agent.run("三个人")
     assert result.requirement.num_travelers == 3
+
+
+def test_llm_patch_cannot_drop_explicit_wake_time(monkeypatch):
+    fake = _FakeLLM('{"updates": {}}')
+    monkeypatch.setattr("travel_agent.agents.requirement_agent.get_llm", lambda **kwargs: fake)
+    result = RequirementAgent().run("作息：晚起；起床时间：10:00")
+    assert result.requirement.wake_up_time == "10:00"
 
 
 def test_llm_patch_merge_normalizes_english_pace_synonym(monkeypatch):

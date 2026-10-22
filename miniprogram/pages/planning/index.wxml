@@ -35,7 +35,7 @@
     <view class="section-title">节奏</view>
     <view class="option-row"><xj-chip wx:for="{{paces}}" wx:key="label" label="{{item.label}}" value="{{index}}" status="{{item.selected?'selected':'default'}}" bind:tap="choosePace"></xj-chip></view>
     <view class="section-title">作息</view>
-    <view class="option-row"><xj-chip wx:for="{{wakes}}" wx:key="label" label="{{item.label}}" value="{{index}}" status="{{item.selected?'selected':'default'}}" bind:tap="chooseWake"></xj-chip></view>
+    <view class="option-row"><view wx:for="{{wakes}}" wx:key="label" class="wake-option {{item.selected?'is-selected':''}}" data-index="{{index}}" bindtap="chooseWake">{{item.label}} · {{item.time}} 起床</view></view>
     <view class="section-title">必去 <text>每次都问</text></view>
     <input class="line-input" value="{{mustGo}}" placeholder="输入本次一定要去的地点，没有可留空" bindinput="onMustInput" />
     <view class="section-title">不想去 <text>每次都问</text></view>

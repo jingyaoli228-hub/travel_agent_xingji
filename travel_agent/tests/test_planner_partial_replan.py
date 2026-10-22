@@ -68,6 +68,32 @@ def test_run_partial_only_rebuilds_target_day(stub_external_calls, no_llm):
     assert "新瑜伽课" in day2_locations
 
 
+def test_required_place_is_scheduled_even_when_other_regions_fill_daily_slots(stub_external_calls, no_llm):
+    req = _requirement().model_copy(update={"duration_days": 2, "daily_attraction_count": 1, "requested_places": ["杭钢公园"]})
+    selected = {"experiences": [
+        _experience("普通景点一", region="西湖区"), _experience("普通景点二", region="拱墅区"),
+        _experience("杭州钢铁遗址公园", region="拱墅区"),
+        {**_experience("西湖餐厅", "food", region="西湖区"), "latitude": 30.24, "longitude": 120.14},
+        {**_experience("拱墅餐厅", "food", region="拱墅区"), "latitude": 30.32, "longitude": 120.15},
+    ]}
+    itinerary, _ = PlannerAgent().run(req, selected, ResearchResult())
+    assert any("杭州钢铁遗址公园" in item.location for day in itinerary.days for item in day.items)
+    attractions_by_day = [[item.location for item in day.items if item.activity == "attraction"] for day in itinerary.days]
+    assert any("普通景点二" in location for location in attractions_by_day[1])
+
+
+def test_lunch_prefers_nearest_restaurant_to_day_route(stub_external_calls, no_llm):
+    req = _requirement().model_copy(update={"duration_days": 1, "daily_attraction_count": 1})
+    selected = {"experiences": [
+        {**_experience("景点", region="A"), "latitude": 30.0, "longitude": 120.0},
+        {**_experience("远餐厅", "food", region="A"), "latitude": 31.0, "longitude": 121.0},
+        {**_experience("近餐厅", "food", region="A"), "latitude": 30.01, "longitude": 120.01},
+    ]}
+    itinerary, _ = PlannerAgent().run(req, selected, ResearchResult())
+    lunch = next(item for item in itinerary.days[0].items if item.activity == "lunch")
+    assert lunch.location == "近餐厅"
+
+
 def test_run_partial_does_not_duplicate_items_already_used_elsewhere(stub_external_calls, no_llm):
     req = _requirement()
     research = ResearchResult()
