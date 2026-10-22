@@ -17,6 +17,8 @@ Push-Location $projectRoot
 try {
     tar -czf $resolvedOutput `
         --exclude=.env `
+        --exclude=miniprogram/config.private.js `
+        --exclude=miniprogram/project.private.config.json `
         --exclude=.git `
         --exclude=.claude `
         --exclude=.venv `
@@ -42,7 +44,8 @@ try {
 
 $entryList = tar -tzf $resolvedOutput
 $forbidden = $entryList | Where-Object {
-    $_ -match '(^|/)\.env$' -or $_ -match '(^|/)backups/' -or
+    $_ -match '(^|/)\.env$' -or $_ -match '(^|/)config\.private\.js$' -or
+    $_ -match '(^|/)project\.private\.config\.json$' -or $_ -match '(^|/)backups/' -or
     $_ -match '(^|/)(node_modules|\.venv|runtime)/'
 }
 if ($forbidden) {
